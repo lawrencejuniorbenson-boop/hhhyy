@@ -528,9 +528,14 @@ tbody tr:hover td{background:var(--hover)}
           </select>
         </div>
         <div class="f">
-          <label>Est. Monthly Revenue</label>
+          <label>Expected Monthly Revenue</label>
           <input id="f-revenue" type="number" min="0" step="0.01" placeholder="0.00">
-          <span class="hint">Optional financial metric</span>
+          <span class="hint">Forecasted / target revenue</span>
+        </div>
+        <div class="f">
+          <label>Actual Monthly Revenue</label>
+          <input id="f-actual-revenue" type="number" min="0" step="0.01" placeholder="0.00">
+          <span class="hint">Real revenue achieved this month</span>
         </div>
 
         <!-- 3. Compliance & Risk -->
@@ -910,6 +915,7 @@ CREATE TABLE IF NOT EXISTS products (
   last_compliance_date DATE,
   performing           TEXT DEFAULT 'Yes',
   revenue_monthly      NUMERIC(15,2),
+  actual_revenue_monthly NUMERIC(15,2),
   risk_level           TEXT DEFAULT 'Low',
   created_at           TIMESTAMPTZ DEFAULT NOW(),
   updated_at           TIMESTAMPTZ DEFAULT NOW()
@@ -1045,6 +1051,7 @@ function norm(r){
     last_compliance_date:r.last_compliance_date||'',
     performing:r.performing||'Yes',
     revenue_monthly:r.revenue_monthly!=null?Number(r.revenue_monthly):null,
+    actual_revenue_monthly:r.actual_revenue_monthly!=null?Number(r.actual_revenue_monthly):null,
     risk_level:r.risk_level||'Low',
     created_at:r.created_at||''
   };
@@ -1094,7 +1101,7 @@ function corePayload(d){
     accounts_opened:d.accounts_opened, active_accounts:d.active_accounts, inactive_accounts:d.inactive_accounts,
     is_selling:d.is_selling, compliance_status:d.compliance_status,
     last_compliance_date:d.last_compliance_date||null,
-    performing:d.performing, revenue_monthly:d.revenue_monthly||null, risk_level:d.risk_level,
+    performing:d.performing, revenue_monthly:d.revenue_monthly||null, actual_revenue_monthly:d.actual_revenue_monthly||null, risk_level:d.risk_level,
     updated_at:new Date().toISOString()
   };
 }
@@ -1367,7 +1374,7 @@ function closeAddOut(e){if(e.target===document.getElementById('add-overlay'))clo
 
 function clearForm(){
   ['f-cat','f-name','f-code','f-owner','f-offerings','f-accounts','f-active-acc',
-   'f-inactive-acc','f-revenue','f-start','f-end','f-progress','f-notes','f-comp-date']
+   'f-inactive-acc','f-revenue','f-actual-revenue','f-start','f-end','f-progress','f-notes','f-comp-date']
   .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-status').value='Pipeline';
   document.getElementById('f-priority').value='Medium';
@@ -1388,6 +1395,7 @@ function fillForm(p){
   document.getElementById('f-active-acc').value=p.active_accounts||'';
   document.getElementById('f-inactive-acc').value=p.inactive_accounts||'';
   document.getElementById('f-revenue').value=p.revenue_monthly!=null?p.revenue_monthly:'';
+  document.getElementById('f-actual-revenue').value=p.actual_revenue_monthly!=null?p.actual_revenue_monthly:'';
   document.getElementById('f-start').value=p.start_date;
   document.getElementById('f-end').value=p.end_date;
   document.getElementById('f-progress').value=p.progress;
@@ -1465,6 +1473,7 @@ async function saveProduct(){
     last_compliance_date:document.getElementById('f-comp-date').value,
     performing:document.getElementById('f-performing').value,
     revenue_monthly:document.getElementById('f-revenue').value||null,
+    actual_revenue_monthly:document.getElementById('f-actual-revenue').value||null,
     risk_level:document.getElementById('f-risk').value
   };
   try{
@@ -1538,7 +1547,9 @@ function openView(id){
           <div><div style="font-size:20px;font-weight:900;color:#94A3B8">${N(p.inactive_accounts)}</div><div style="font-size:10px;color:var(--muted)">Inactive</div></div>
         </div>
       </div>
-      <div class="df"><label>Est. Monthly Revenue</label><div class="val">${C(p.revenue_monthly)}</div></div>
+      <div class="df"><label>Expected Monthly Revenue</label><div class="val">${C(p.revenue_monthly)}</div></div>
+      <div class="df"><label>Actual Monthly Revenue</label><div class="val">${C(p.actual_revenue_monthly)}</div></div>
+      ${(p.revenue_monthly!=null&&p.actual_revenue_monthly!=null)?`<div class="df"><label>Revenue vs Target</label><div class="val">${(()=>{const diff=p.actual_revenue_monthly-p.revenue_monthly;const pct=p.revenue_monthly>0?((diff/p.revenue_monthly)*100).toFixed(1):0;const over=diff>=0;return '<span class="badge '+(over?'b-compliant':'b-noncompliant')+'" style="font-size:12px">'+(over?'▲ ':'▼ ')+Math.abs(pct)+'% '+(over?'Over':'Under')+' Target</span>';})()}</div></div>`:''}
       <div class="sec-sep"></div>
       <div class="df"><label>Compliance Status</label><div class="val"><span class="badge ${CMP_CSS[p.compliance_status]||'b-pending'}">${p.compliance_status||'—'}</span></div></div>
       <div class="df"><label>Last Compliance Check</label><div class="val">${p.last_compliance_date||'—'}</div></div>
@@ -1730,7 +1741,7 @@ async function importData(event){
           inactive_accounts:p.inactive_accounts||0,is_selling:p.is_selling!=null?p.is_selling:true,
           compliance_status:p.compliance_status||'Compliant',
           last_compliance_date:p.last_compliance_date||null,performing:p.performing||'Yes',
-          revenue_monthly:p.revenue_monthly||null,risk_level:p.risk_level||'Low'
+          revenue_monthly:p.revenue_monthly||null,actual_revenue_monthly:p.actual_revenue_monthly||null,risk_level:p.risk_level||'Low'
         });
       }
       await loadData(); toast('✅ '+products.length+' products imported!');
