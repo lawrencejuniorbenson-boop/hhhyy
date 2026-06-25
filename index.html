@@ -497,16 +497,17 @@ tbody tr:hover td{background:var(--hover)}
         <div class="sec-hd"><div class="sec-num">2</div><span>Accounts &amp; Performance</span></div>
         <div class="f">
           <label>Total Accounts Opened</label>
-          <input id="f-accounts" type="number" min="0" placeholder="0">
+          <input id="f-accounts" type="number" min="0" placeholder="0" oninput="calcInactiveAcc()">
           <span class="hint">Total customers / accounts enrolled on this product</span>
         </div>
         <div class="f">
           <label>Active Accounts</label>
-          <input id="f-active-acc" type="number" min="0" placeholder="0">
+          <input id="f-active-acc" type="number" min="0" placeholder="0" oninput="calcInactiveAcc()">
         </div>
         <div class="f">
-          <label>Inactive Accounts</label>
-          <input id="f-inactive-acc" type="number" min="0" placeholder="0">
+          <label>Inactive Accounts <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:4px">(auto-calculated)</span></label>
+          <input id="f-inactive-acc" type="number" min="0" placeholder="0" readonly style="background:#F1F5F9;color:var(--muted);cursor:not-allowed;border-color:var(--bdr)">
+          <span class="hint">Calculated automatically: Total Accounts − Active Accounts</span>
         </div>
         <div class="f">
           <label>Currently Selling?</label>
@@ -1400,6 +1401,12 @@ function fillForm(p){
   document.getElementById('f-selling').checked=p.is_selling;
   updateSellLbl();
   renderTags();
+}
+function calcInactiveAcc(){
+  const total=Number(document.getElementById('f-accounts').value)||0;
+  const active=Number(document.getElementById('f-active-acc').value)||0;
+  const inactive=Math.max(0, total-active);
+  document.getElementById('f-inactive-acc').value=inactive>0?inactive:'';
 }
 function updateSellLbl(){
   const cb=document.getElementById('f-selling');
