@@ -771,6 +771,18 @@ tbody tr:hover td{background:var(--hover)}
         <input type="file" id="imp-inp" accept=".json" style="display:none" onchange="importData(event)">
       </div>
 
+      <!-- Database Migrations -->
+      <div class="adm-sec" style="border:1.5px solid rgba(212,168,67,.35);background:rgba(212,168,67,.04);border-radius:12px;padding:16px">
+        <div class="adm-sec-t">⚡ Database Migration</div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Run this SQL in your <strong>Supabase SQL Editor</strong> to add the <code style="background:#F1F5F9;padding:1px 5px;border-radius:4px">actual_revenue_monthly</code> column to your existing products table.</p>
+        <div style="background:#0F172A;border-radius:8px;padding:12px 14px;margin-bottom:10px;position:relative">
+          <pre id="migration-sql" style="font-size:11.5px;color:#7DD3FC;font-family:'Courier New',monospace;white-space:pre-wrap;margin:0">ALTER TABLE products
+ADD COLUMN IF NOT EXISTS actual_revenue_monthly NUMERIC(15,2);</pre>
+        </div>
+        <button class="copy-btn" onclick="copyMigrationSQL()" style="background:var(--gold);color:#0F2035;border:none;padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📋 Copy Migration SQL</button>
+        <a href="https://supabase.com/dashboard" target="_blank" style="display:inline-flex;align-items:center;gap:5px;margin-left:10px;padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;background:rgba(37,99,235,.12);color:#60A5FA;border:1px solid rgba(37,99,235,.25);text-decoration:none">🔗 Open Supabase SQL Editor</a>
+      </div>
+
       <!-- SQL Setup Guide -->
       <div class="adm-sec">
         <div class="adm-sec-t">🗄️ SQL Setup Guide</div>
@@ -1709,6 +1721,10 @@ function toggleSQL(){
 }
 function copySQL(){
   navigator.clipboard.writeText(SQL_SETUP).then(()=>toast('✅ SQL copied to clipboard!'));
+}
+function copyMigrationSQL(){
+  const sql=document.getElementById('migration-sql').textContent;
+  navigator.clipboard.writeText(sql).then(()=>toast('✅ Migration SQL copied! Paste it in Supabase SQL Editor.'));
 }
 
 /* ============================================================
