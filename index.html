@@ -86,7 +86,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .err-retry{margin-left:auto;padding:5px 12px;border-radius:6px;background:var(--red);color:#fff;border:none;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit}
 
 /* ─── KPI CARDS ─── */
-.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:22px}
+.kpi-row{display:grid;grid-template-columns:repeat(7,1fr);gap:14px;margin-bottom:22px}
 .kpi{background:var(--card);border-radius:13px;border:1px solid var(--bdr);padding:18px 18px 15px;position:relative;overflow:hidden;box-shadow:var(--sh);transition:all .22s ease;cursor:default}
 .kpi:hover{box-shadow:var(--shlg);transform:translateY(-3px)}
 .kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:13px 13px 0 0}
@@ -96,6 +96,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .kpi.k4::after{background:linear-gradient(90deg,var(--gold),var(--goldl))}
 .kpi.k5::after{background:linear-gradient(90deg,var(--purple),#A78BFA)}
 .kpi.k6::after{background:linear-gradient(90deg,var(--amber),#FCD34D)}
+.kpi.k7::after{background:linear-gradient(90deg,#EC4899,#F472B6)}
 .kpi-ico{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:13px;font-size:17px}
 .kpi.k1 .kpi-ico{background:rgba(27,58,92,.09)}
 .kpi.k2 .kpi-ico{background:rgba(8,145,178,.09)}
@@ -103,6 +104,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .kpi.k4 .kpi-ico{background:rgba(212,168,67,.09)}
 .kpi.k5 .kpi-ico{background:rgba(124,58,237,.09)}
 .kpi.k6 .kpi-ico{background:rgba(217,119,6,.09)}
+.kpi.k7 .kpi-ico{background:rgba(236,72,153,.09)}
 .kpi-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px}
 .kpi-val{font-size:30px;font-weight:900;color:var(--txt);line-height:1;letter-spacing:-1px}
 .kpi-sub{font-size:10.5px;color:var(--muted);margin-top:5px}
@@ -166,6 +168,13 @@ tbody tr:hover td{background:var(--hover)}
 .acct-stat .tot{font-size:13px;font-weight:800;color:var(--navy)}
 .acct-stat .subs{display:flex;gap:6px;font-size:9.5px;font-weight:600;color:var(--muted)}
 .acct-stat .ac{color:var(--green)}.acct-stat .ic{color:#94A3B8}
+/* revenue mini stat */
+.rev-stat{display:flex;flex-direction:column;gap:1px}
+.rev-stat .act{font-size:12.5px;font-weight:800;color:var(--navy)}
+.rev-stat .exp{font-size:10px;color:var(--muted);font-weight:500}
+.rev-stat .diff{font-size:9.5px;font-weight:700;margin-top:1px}
+.rev-stat .diff.up{color:var(--green)}
+.rev-stat .diff.down{color:var(--red)}
 /* progress */
 .prog-wrap{display:flex;align-items:center;gap:8px;min-width:100px}
 .prog-track{flex:1;height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden}
@@ -324,9 +333,10 @@ tbody tr:hover td{background:var(--hover)}
 .toast.show{opacity:1;transform:none}
 
 /* ─── RESPONSIVE ─── */
-@media(max-width:1280px){.kpi-row{grid-template-columns:repeat(3,1fr)}.charts-row{grid-template-columns:1fr 1fr}}
+@media(max-width:1400px){.kpi-row{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr)}.charts-row{grid-template-columns:1fr 1fr}}
 @media(max-width:980px){.kpi-row{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}.fg{grid-template-columns:repeat(2,1fr)}.adm-drawer{width:100vw}.main{padding:16px 14px}.hdr-top{padding:14px 16px 0}.cat-tabs{padding:10px 16px 0}}
-@media(max-width:600px){.kpi-row{grid-template-columns:1fr 1fr}.fg{grid-template-columns:1fr}.detail-grid{grid-template-columns:1fr}.df.full{grid-column:1}}
+@media(max-width:600px){.kpi-row{grid-template-columns:1fr}.fg{grid-template-columns:1fr}.detail-grid{grid-template-columns:1fr}.df.full{grid-column:1}}
 </style>
 </head>
 <body>
@@ -433,6 +443,7 @@ tbody tr:hover td{background:var(--hover)}
             <th>Product</th>
             <th>Category</th>
             <th>Accounts Opened</th>
+            <th>Monthly Revenue</th>
             <th>Selling?</th>
             <th>Compliance</th>
             <th>Performing?</th>
@@ -771,10 +782,27 @@ tbody tr:hover td{background:var(--hover)}
       <!-- Database Migrations -->
       <div class="adm-sec" style="border:1.5px solid rgba(212,168,67,.35);background:rgba(212,168,67,.04);border-radius:12px;padding:16px">
         <div class="adm-sec-t">⚡ Database Migration</div>
-        <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Run this SQL in your <strong>Supabase SQL Editor</strong> to add the <code style="background:#F1F5F9;padding:1px 5px;border-radius:4px">actual_revenue_monthly</code> column to your existing products table.</p>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Run this SQL in your <strong>Supabase SQL Editor</strong> to add the <code style="background:#F1F5F9;padding:1px 5px;border-radius:4px">actual_revenue_monthly</code> column and recreate the view so it contains the new column.</p>
         <div style="background:#0F172A;border-radius:8px;padding:12px 14px;margin-bottom:10px;position:relative">
           <pre id="migration-sql" style="font-size:11.5px;color:#7DD3FC;font-family:'Courier New',monospace;white-space:pre-wrap;margin:0">ALTER TABLE products
-ADD COLUMN IF NOT EXISTS actual_revenue_monthly NUMERIC(15,2);</pre>
+ADD COLUMN IF NOT EXISTS actual_revenue_monthly NUMERIC(15,2);
+
+CREATE OR REPLACE VIEW products_full AS
+SELECT
+  p.*,
+  COALESCE((
+    SELECT json_agg(g.gap_text ORDER BY g.sort_order)
+    FROM product_gaps g WHERE g.product_id = p.id
+  ), '[]') AS gaps,
+  COALESCE((
+    SELECT json_agg(m.market_text ORDER BY m.sort_order)
+    FROM product_markets m WHERE m.product_id = p.id
+  ), '[]') AS markets,
+  COALESCE((
+    SELECT json_agg(e.enhancement_text ORDER BY e.sort_order)
+    FROM product_enhancements e WHERE e.product_id = p.id
+  ), '[]') AS enhancements
+FROM products p;</pre>
         </div>
         <button class="copy-btn" onclick="copyMigrationSQL()" style="background:var(--gold);color:#0F2035;border:none;padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📋 Copy Migration SQL</button>
         <a href="https://supabase.com/dashboard" target="_blank" style="display:inline-flex;align-items:center;gap:5px;margin-left:10px;padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;background:rgba(37,99,235,.12);color:#60A5FA;border:1px solid rgba(37,99,235,.25);text-decoration:none">🔗 Open Supabase SQL Editor</a>
@@ -1135,6 +1163,13 @@ function toast(m,d=3300){const t=document.getElementById('toast');t.textContent=
 function dc(k){if(charts[k]){charts[k].destroy();delete charts[k];}}
 function N(n){return n!=null?Number(n).toLocaleString():'-'}
 function C(n){return n!=null?'GH₵ '+Number(n).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}):'-'}
+function CCompact(n){
+  if(n==null)return '-';
+  const num=Number(n);
+  if(Math.abs(num)>=1.0e6)return 'GH₵ '+(num/1.0e6).toFixed(1)+'M';
+  if(Math.abs(num)>=1.0e3)return 'GH₵ '+(num/1.0e3).toFixed(1)+'K';
+  return 'GH₵ '+num.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
 
 function applyDOM(){
   document.getElementById('hdr-title').textContent=SETTINGS.title;
@@ -1187,6 +1222,12 @@ function renderKPIs(){
   const highRisk=vd.filter(p=>p.risk_level==='High'||p.risk_level==='Critical').length;
   const avgProg=total?Math.round(vd.reduce((s,p)=>s+p.progress,0)/total):0;
 
+  const totalExpectedRev=vd.reduce((s,p)=>s+(p.revenue_monthly||0),0);
+  const totalActualRev=vd.reduce((s,p)=>s+(p.actual_revenue_monthly||0),0);
+  const revDiff=totalActualRev-totalExpectedRev;
+  const revPct=totalExpectedRev>0?Math.round((revDiff/totalExpectedRev)*100):0;
+  const revOver=revDiff>=0;
+
   function N(n){return n!=null?Number(n).toLocaleString():'-'}
 
   document.getElementById('kpi-row').innerHTML=`
@@ -1225,6 +1266,12 @@ function renderKPIs(){
       <div class="kpi-lbl">Avg Progress · High Risk</div>
       <div class="kpi-val">${avgProg}%</div>
       <div class="kpi-sub">${highRisk} high / critical risk product${highRisk!==1?'s':''}</div>
+    </div>
+    <div class="kpi k7">
+      <div class="kpi-ico">💰</div>
+      <div class="kpi-lbl">Monthly Revenue</div>
+      <div class="kpi-val">${CCompact(totalActualRev)}</div>
+      <div class="kpi-sub">Target: ${CCompact(totalExpectedRev)} ${totalExpectedRev>0?`· <span style="font-weight:700;color:${revOver?'var(--green)':'var(--red)'}">${revOver?'▲':'▼'} ${Math.abs(revPct)}%</span>`:''}</div>
     </div>`;
 }
 
@@ -1297,7 +1344,7 @@ function renderTable(){
   document.getElementById('status-filters').innerHTML=
     allSts.map(s=>`<button class="fbtn ${sfilt===s?'on':''}" onclick="setSF('${s}')">${s}</button>`).join('');
   if(!vd.length){
-    document.getElementById('main-tbody').innerHTML=`<tr class="empty-row"><td colspan="12">
+    document.getElementById('main-tbody').innerHTML=`<tr class="empty-row"><td colspan="13">
       <div class="empty-ico">📦</div>
       <div>${!ok()?'Configure Supabase in Admin Settings to get started.':'No products found. Try a different filter or add a new product.'}</div>
     </td></tr>`;
@@ -1323,6 +1370,18 @@ function renderTable(){
         <div class="acct-stat">
           <span class="tot">${N(p.accounts_opened)}</span>
           <span class="subs"><span class="ac">▲${N(p.active_accounts)}</span><span class="ic">▼${N(p.inactive_accounts)}</span></span>
+        </div>
+      </td>
+      <td>
+        <div class="rev-stat">
+          <div class="act">Act: ${p.actual_revenue_monthly!=null?C(p.actual_revenue_monthly):'—'}</div>
+          <div class="exp">Exp: ${p.revenue_monthly!=null?C(p.revenue_monthly):'—'}</div>
+          ${(p.revenue_monthly!=null&&p.actual_revenue_monthly!=null)?(()=>{
+            const diff=p.actual_revenue_monthly-p.revenue_monthly;
+            const pct=p.revenue_monthly>0?((diff/p.revenue_monthly)*100).toFixed(0):0;
+            const over=diff>=0;
+            return `<div class="diff ${over?'up':'down'}">${over?'▲':'▼'} ${Math.abs(pct)}% ${over?'over':'under'}</div>`;
+          })():''}
         </div>
       </td>
       <td><span class="badge ${p.is_selling?'sell-yes':'sell-no'}">${p.is_selling?'● Selling':'● Not Selling'}</span></td>
@@ -1793,6 +1852,13 @@ function saveFile(){
    ============================================================ */
 function N(n){return n!=null?Number(n).toLocaleString():'-'}
 function C(n){return n!=null?'GH₵ '+Number(n).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}):'-'}
+function CCompact(n){
+  if(n==null)return '-';
+  const num=Number(n);
+  if(Math.abs(num)>=1.0e6)return 'GH₵ '+(num/1.0e6).toFixed(1)+'M';
+  if(Math.abs(num)>=1.0e3)return 'GH₵ '+(num/1.0e3).toFixed(1)+'K';
+  return 'GH₵ '+num.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
 
 /* ============================================================
    BOOT
