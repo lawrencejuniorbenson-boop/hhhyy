@@ -2095,6 +2095,21 @@
 </head>
 
 <body class="mode-products">
+  <!-- INACTIVITY WARNING OVERLAY -->
+  <div id="inactivity-overlay" class="overlay" style="z-index: 100005; display: none; align-items: center; justify-content: center; background: rgba(3, 15, 67, 0.6); backdrop-filter: blur(8px);">
+    <div class="modal" style="max-width: 380px; padding: 24px; text-align: center; background: var(--card); border: 1px solid var(--bdr)">
+      <div style="font-size: 36px; margin-bottom: 12px">⏳</div>
+      <h3 style="font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 8px">Session Security Timeout</h3>
+      <p style="font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 20px">
+        You have been inactive. For your security, you will be logged out in <span id="inactivity-countdown" style="color: var(--gold); font-weight: bold; font-size: 13px">20</span> seconds.
+      </p>
+      <div style="display: flex; gap: 8px; justify-content: center">
+        <button class="a-btn a-view" onclick="resetInactivityTimer(true)" style="background: var(--gold); border-color: var(--gold); color: #0F2035; font-weight: 800">Stay Signed In</button>
+        <button class="a-btn a-del" onclick="logout()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
   <!-- LOGIN SCREEN -->
   <div id="login-screen" class="login-screen" style="display:none">
     <div class="login-card">
@@ -3546,6 +3561,71 @@
 
     /* ── AUTH HELPERS ────────────────────────────────────────────────── */
     let authMode = 'login';
+    // INACTIVITY AUTO LOGOUT LOGIC
+    let inactivityTimer = null;
+    let warningTimer = null;
+    let countdownTimer = null;
+    let countdownSeconds = 20;
+    let isWarningActive = false;
+
+    function startInactivityTimer() {
+      clearInactivityTimers();
+      if (!AUTH_TOKEN) return;
+      
+      // Warning triggers at 40s (leaves 20s warning before 60s total)
+      warningTimer = setTimeout(showInactivityWarning, 40000);
+      inactivityTimer = setTimeout(performAutoLogout, 60000);
+    }
+
+    function clearInactivityTimers() {
+      if (warningTimer) clearTimeout(warningTimer);
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      if (countdownTimer) clearInterval(countdownTimer);
+      isWarningActive = false;
+    }
+
+    function showInactivityWarning() {
+      isWarningActive = true;
+      countdownSeconds = 20;
+      document.getElementById('inactivity-countdown').textContent = countdownSeconds;
+      document.getElementById('inactivity-overlay').style.display = 'flex';
+      
+      countdownTimer = setInterval(() => {
+        countdownSeconds--;
+        document.getElementById('inactivity-countdown').textContent = countdownSeconds;
+        if (countdownSeconds <= 0) {
+          clearInterval(countdownTimer);
+        }
+      }, 1000);
+    }
+
+    async function performAutoLogout() {
+      clearInactivityTimers();
+      document.getElementById('inactivity-overlay').style.display = 'none';
+      
+      try {
+        const email = sessionStorage.getItem('pp_user_email') || 'system';
+        await logAuditAction('TIMEOUT_LOGOUT', 'system', null, `User session timed out due to inactivity: ${email}`);
+      } catch (e) {
+        console.error(e);
+      }
+      
+      logout();
+      toast('🔒 You have been logged out due to inactivity.');
+    }
+
+    function resetInactivityTimer(fromButton = false) {
+      if (isWarningActive && !fromButton) {
+        return; // Must click button if warning is active
+      }
+      document.getElementById('inactivity-overlay').style.display = 'none';
+      startInactivityTimer();
+    }
+
+    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'click', 'scroll'].forEach(evt => {
+      window.addEventListener(evt, () => resetInactivityTimer(false), { passive: true });
+    });
+
     function togglePasswordVisibility() {
       const input = document.getElementById('auth-password');
       const btn = document.getElementById('btn-toggle-pass');
@@ -3612,6 +3692,7 @@
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-container').style.display = 'flex';
         toast('🔑 Welcome back!');
+        startInactivityTimer();
         await loadData();
       } catch (err) {
         toast('❌ Sign in failed: ' + err.message);
@@ -3653,6 +3734,8 @@
     }
 
     function logout() {
+      clearInactivityTimers();
+      document.getElementById('inactivity-overlay').style.display = 'none';
       sessionStorage.removeItem('pp_auth_token');
       sessionStorage.removeItem('pp_user_email');
       sessionStorage.removeItem('pp_is_admin');
@@ -4092,6 +4175,7 @@ CREATE POLICY "Allow approved audit logs" ON audit_logs FOR ALL TO authenticated
     if (AUTH_TOKEN) {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app-container').style.display = 'flex';
+      startInactivityTimer();
       loadData();
     } else {
       document.getElementById('login-screen').style.display = 'flex';
