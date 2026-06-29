@@ -2777,9 +2777,9 @@
           </div>
         </div>
 
-        <div class="adm-sec">
+        <div class="adm-sec" id="approval-sec" style="display:none">
           <div class="adm-sec-t">👤 User Approvals</div>
-          <div id="approvals-list"></div>
+          <div id="approvals-list" style="display:flex;flex-direction:column;gap:8px"></div>
         </div>
         <div class="adm-sec">
           <div class="adm-sec-t">🎨 Branding</div>
@@ -2843,6 +2843,7 @@
     const ANON_KEY = NEW_SB_KEY;
     let SB_URL = NEW_SB_URL;
     let AUTH_TOKEN = sessionStorage.getItem('pp_auth_token') || null;
+    let IS_ADMIN = sessionStorage.getItem('pp_is_admin') === 'true';
     function ok() { return SB_URL && SB_URL !== 'https://your-project.supabase.co' && ANON_KEY && ANON_KEY !== 'your-anon-key'; }
     async function sbGet(t, q = '') { const r = await fetch(`${SB_URL}/rest/v1/${t}${q}`, { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + (AUTH_TOKEN || ANON_KEY) } }); if (!r.ok) throw new Error(r.status + ': ' + await r.text()); return r.json(); }
     async function sbPost(t, d) { const r = await fetch(`${SB_URL}/rest/v1/${t}`, { method: 'POST', headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + (AUTH_TOKEN || ANON_KEY), 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(d) }); if (!r.ok) throw new Error(r.status + ': ' + await r.text()); return r.json(); }
@@ -3558,8 +3559,10 @@
           throw new Error('Your account is pending admin approval.');
         }
         
+        IS_ADMIN = appr[0].is_admin;
         sessionStorage.setItem('pp_auth_token', AUTH_TOKEN);
         sessionStorage.setItem('pp_user_email', emailVal);
+        sessionStorage.setItem('pp_is_admin', IS_ADMIN ? 'true' : 'false');
         
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-container').style.display = 'flex';
@@ -3607,7 +3610,9 @@
     function logout() {
       sessionStorage.removeItem('pp_auth_token');
       sessionStorage.removeItem('pp_user_email');
+      sessionStorage.removeItem('pp_is_admin');
       AUTH_TOKEN = null;
+      IS_ADMIN = false;
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('app-container').style.display = 'none';
       toast('🚪 Signed out safely.');
@@ -3664,25 +3669,41 @@
     }
 
     async function renderApprovals() {
+      const sec = document.getElementById('approval-sec');
+      if (!sec) return;
+      if (!IS_ADMIN) { sec.style.display = 'none'; return; }
+      sec.style.display = '';
       if (!ok()) return;
       try {
-        const list = await sbGet('user_approvals');
+        const list = await sbGet('user_approvals', '?order=created_at.asc');
         const container = document.getElementById('approvals-list');
         if (!container) return;
-        const pending = list.filter(u => !u.approved);
-        if (!pending.length) {
-          container.innerHTML = `<div style="text-align:center;padding:12px;color:var(--muted);font-size:11px;font-style:italic">No pending approvals.</div>`;
+        if (!list.length) {
+          container.innerHTML = `<div style="text-align:center;padding:12px;color:var(--muted);font-size:11px;font-style:italic">No users registered yet.</div>`;
           return;
         }
-        container.innerHTML = pending.map(u => `
-          <div class="qe-item">
-            <div style="flex:1;min-width:0">
-              <div class="qe-name" style="word-break:break-all">${u.email}</div>
-              <div class="qe-meta" style="font-size:9.5px">Registered ${new Date(u.created_at).toLocaleDateString()}</div>
+        container.innerHTML = list.map(u => {
+          let actionBtn = '';
+          let badge = '';
+          if (!u.approved) {
+            badge = '<span class="badge b-pipeline" style="font-size:9px;padding:1px 5px">Pending</span>';
+            actionBtn = `<button class="a-btn a-view" onclick="approveUser('${u.email}')">Approve</button>`;
+          } else if (u.is_admin) {
+            badge = '<span class="badge b-review" style="font-size:9px;padding:1px 5px;background:#F59E0B;color:#fff">Admin</span>';
+          } else {
+            badge = '<span class="badge b-completed" style="font-size:9px;padding:1px 5px">Member</span>';
+            actionBtn = `<button class="a-btn a-edit" onclick="makeAdmin('${u.email}')" style="background:var(--blue);border-color:var(--blue);font-size:10px">Make Admin</button>`;
+          }
+          return `
+            <div class="qe-item" style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.05)">
+              <div style="flex:1;min-width:0;margin-right:8px">
+                <div class="qe-name" style="word-break:break-all;font-size:11.5px;font-weight:600">${u.email}</div>
+                <div class="qe-meta" style="font-size:9.5px;color:var(--muted);margin-top:2px">${badge} · Registered ${new Date(u.created_at).toLocaleDateString()}</div>
+              </div>
+              <div style="display:flex;gap:4px">${actionBtn}</div>
             </div>
-            <button class="a-btn a-view" onclick="approveUser('${u.email}')">Approve</button>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       } catch (err) {
         console.error('Failed to load user approvals:', err);
       }
@@ -3697,6 +3718,21 @@
         await renderApprovals();
       } catch (err) {
         toast('❌ Approval failed: ' + err.message);
+      } finally {
+        showLoad(false);
+      }
+    }
+
+    async function makeAdmin(email) {
+      if (!confirm(`Are you sure you want to promote ${email} to Admin?`)) return;
+      showLoad(true);
+      try {
+        await sbPatch('user_approvals', '?email=eq.' + email, { is_admin: true });
+        toast('👑 Promoted to Admin successfully!');
+        await logAuditAction('PROMOTE_ADMIN', 'system', null, `Promoted user to Admin: ${email}`);
+        await renderApprovals();
+      } catch (err) {
+        toast('❌ Promotion failed: ' + err.message);
       } finally {
         showLoad(false);
       }
@@ -3886,6 +3922,7 @@ CREATE OR REPLACE VIEW projects_full WITH (security_invoker = true) AS SELECT p.
 CREATE TABLE IF NOT EXISTS user_approvals (
   email TEXT PRIMARY KEY,
   approved BOOLEAN DEFAULT false,
+  is_admin BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -3906,11 +3943,11 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
   IF (SELECT count(*) FROM public.user_approvals) = 0 THEN
-    INSERT INTO public.user_approvals (email, approved)
-    VALUES (new.email, true);
+    INSERT INTO public.user_approvals (email, approved, is_admin)
+    VALUES (new.email, true, true);
   ELSE
-    INSERT INTO public.user_approvals (email, approved)
-    VALUES (new.email, false);
+    INSERT INTO public.user_approvals (email, approved, is_admin)
+    VALUES (new.email, false, false);
   END IF;
   RETURN new;
 END;
