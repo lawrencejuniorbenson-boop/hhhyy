@@ -2778,6 +2778,10 @@
         </div>
 
         <div class="adm-sec">
+          <div class="adm-sec-t">👤 User Approvals</div>
+          <div id="approvals-list"></div>
+        </div>
+        <div class="adm-sec">
           <div class="adm-sec-t">🎨 Branding</div>
           <div class="si"><label>Dashboard Title</label><input id="s-name" type="text"
               placeholder="ProductPulse Dashboard"></div>
@@ -3543,9 +3547,19 @@
           throw new Error(err.error_description || err.message || 'Login failed');
         }
         const data = await res.json();
-        AUTH_TOKEN = data.access_token;
+        const token = data.access_token;
+        const emailVal = data.user.email;
+        
+        // Temporarily assign token to check status
+        AUTH_TOKEN = token;
+        const appr = await sbGet('user_approvals', '?email=eq.' + emailVal);
+        if (appr.length === 0 || !appr[0].approved) {
+          AUTH_TOKEN = null;
+          throw new Error('Your account is pending admin approval.');
+        }
+        
         sessionStorage.setItem('pp_auth_token', AUTH_TOKEN);
-        sessionStorage.setItem('pp_user_email', data.user.email);
+        sessionStorage.setItem('pp_user_email', emailVal);
         
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-container').style.display = 'flex';
@@ -3646,6 +3660,45 @@
         console.error('Failed to fetch audit logs:', err);
         const tbody = document.getElementById('audit-tbody');
         if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--red)">Failed to load audit logs: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function renderApprovals() {
+      if (!ok()) return;
+      try {
+        const list = await sbGet('user_approvals');
+        const container = document.getElementById('approvals-list');
+        if (!container) return;
+        const pending = list.filter(u => !u.approved);
+        if (!pending.length) {
+          container.innerHTML = `<div style="text-align:center;padding:12px;color:var(--muted);font-size:11px;font-style:italic">No pending approvals.</div>`;
+          return;
+        }
+        container.innerHTML = pending.map(u => `
+          <div class="qe-item">
+            <div style="flex:1;min-width:0">
+              <div class="qe-name" style="word-break:break-all">${u.email}</div>
+              <div class="qe-meta" style="font-size:9.5px">Registered ${new Date(u.created_at).toLocaleDateString()}</div>
+            </div>
+            <button class="a-btn a-view" onclick="approveUser('${u.email}')">Approve</button>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load user approvals:', err);
+      }
+    }
+
+    async function approveUser(email) {
+      showLoad(true);
+      try {
+        await sbPatch('user_approvals', '?email=eq.' + email, { approved: true });
+        toast('👤 User approved successfully!');
+        await logAuditAction('APPROVE_USER', 'system', null, `Approved user: ${email}`);
+        await renderApprovals();
+      } catch (err) {
+        toast('❌ Approval failed: ' + err.message);
+      } finally {
+        showLoad(false);
       }
     }
 
@@ -3829,6 +3882,13 @@ CREATE TABLE IF NOT EXISTS projects (id UUID DEFAULT gen_random_uuid() PRIMARY K
 CREATE TABLE IF NOT EXISTS project_tasks (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, task_text TEXT NOT NULL, target_date DATE, status TEXT DEFAULT 'Pending', owner TEXT, sort_order INTEGER DEFAULT 0);
 CREATE OR REPLACE VIEW projects_full WITH (security_invoker = true) AS SELECT p.*, COALESCE((SELECT json_agg(json_build_object('id',t.id,'task_text',t.task_text,'target_date',t.target_date,'status',t.status,'owner',t.owner,'sort_order',t.sort_order) ORDER BY t.sort_order) FROM project_tasks t WHERE t.project_id=p.id),'[]') AS tasks FROM projects p;
 
+-- Create approvals table
+CREATE TABLE IF NOT EXISTS user_approvals (
+  email TEXT PRIMARY KEY,
+  approved BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Create Audit Trail table
 CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -3841,6 +3901,26 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Trigger function to auto-handle user registrations in Supabase auth.users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  IF (SELECT count(*) FROM public.user_approvals) = 0 THEN
+    INSERT INTO public.user_approvals (email, approved)
+    VALUES (new.email, true);
+  ELSE
+    INSERT INTO public.user_approvals (email, approved)
+    VALUES (new.email, false);
+  END IF;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to execute function on new signup
+CREATE OR REPLACE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE products ENABLE ROW LEVEL SECURITY; 
 ALTER TABLE product_gaps ENABLE ROW LEVEL SECURITY; 
@@ -3851,15 +3931,44 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Secure backend policies requiring logged in (authenticated) users
-CREATE POLICY "Allow authenticated products" ON products FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Allow authenticated gaps" ON product_gaps FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Allow authenticated markets" ON product_markets FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Allow authenticated enhancements" ON product_enhancements FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Allow authenticated settings" ON dashboard_settings FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Allow authenticated projects" ON projects FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Allow authenticated tasks" ON project_tasks FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Allow authenticated audit logs" ON audit_logs FOR ALL TO authenticated USING (true) WITH CHECK (true);`;
+-- Enable RLS on approvals
+ALTER TABLE user_approvals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow select approvals" ON user_approvals FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow insert approvals" ON user_approvals FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow update approvals" ON user_approvals FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+-- Secure backend policies requiring approved status
+CREATE POLICY "Allow approved products" ON products FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true));
+
+CREATE POLICY "Allow approved gaps" ON product_gaps FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true));
+
+CREATE POLICY "Allow approved markets" ON product_markets FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true));
+
+CREATE POLICY "Allow approved enhancements" ON product_enhancements FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true));
+
+CREATE POLICY "Allow approved settings" ON dashboard_settings FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true));
+
+CREATE POLICY "Allow approved projects" ON projects FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true));
+
+CREATE POLICY "Allow approved tasks" ON project_tasks FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true));
+
+CREATE POLICY "Allow approved audit logs" ON audit_logs FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true));`;
     function openAdmin() {
       document.getElementById('s-name').value = SETTINGS.title;
       document.getElementById('s-sub').value = SETTINGS.sub;
@@ -3874,6 +3983,7 @@ CREATE POLICY "Allow authenticated audit logs" ON audit_logs FOR ALL TO authenti
       document.getElementById('a-highrisk').textContent = vd.filter(p => ['High', 'Critical'].includes(p.risk_level)).length;
 
       renderQE();
+      renderApprovals();
       document.getElementById('adm-overlay').classList.add('open');
     }
     function closeAdmin() { document.getElementById('adm-overlay').classList.remove('open'); }
