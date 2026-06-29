@@ -717,6 +717,24 @@ body.mode-portfolio .mode-product-only,.mode-portfolio .mode-project-only{displa
             <option value="other">📦 Other Products</option>
           </select>
         </div>
+        <div class="f">
+          <label>Reporting Month *</label>
+          <select id="f-rep-month">
+            <option value="">— Select Month —</option>
+            <option value="January">January</option>
+            <option value="February">February</option>
+            <option value="March">March</option>
+            <option value="April">April</option>
+            <option value="May">May</option>
+            <option value="June">June</option>
+            <option value="July">July</option>
+            <option value="August">August</option>
+            <option value="September">September</option>
+            <option value="October">October</option>
+            <option value="November">November</option>
+            <option value="December">December</option>
+          </select>
+        </div>
         <div class="f s2"><label id="lbl-f-name">Product Name *</label><input id="f-name" type="text" placeholder="e.g. Mobile Wallet, Visa Debit Card…"></div>
         <div class="f"><label>Code</label><input id="f-code" type="text" placeholder="e.g. DIG-001"></div>
         <div class="f s2"><label id="lbl-f-owner">Owner / Team</label><input id="f-owner" type="text" placeholder="e.g. Digital Banking Team"></div>
@@ -1126,11 +1144,11 @@ async function loadData(){
 }
 function normProduct(r){
   const j=v=>Array.isArray(v)?v:(v?JSON.parse(v):[]);
-  return {id:r.id,product_code:r.product_code||'',cat:r.category_id,name:r.name,offerings:r.offerings||'',gaps:j(r.gaps),markets:j(r.markets),enhancements:j(r.enhancements),start_date:r.start_date||'',end_date:r.end_date||'',progress:Number(r.progress)||0,status:r.status||'Active',priority:r.priority||'Medium',owner:r.owner||'',notes:r.notes||'',accounts_opened:Number(r.accounts_opened)||0,active_accounts:Number(r.active_accounts)||0,inactive_accounts:Number(r.inactive_accounts)||0,target_onboarding:Number(r.target_onboarding)||0,is_selling:r.is_selling!=null?Boolean(r.is_selling):true,compliance_status:r.compliance_status||'Compliant',performing:r.performing||'Yes',revenue_monthly:r.revenue_monthly!=null?Number(r.revenue_monthly):null,actual_revenue_monthly:r.actual_revenue_monthly!=null?Number(r.actual_revenue_monthly):null,risk_level:r.risk_level||'Low',created_at:r.created_at||''};
+  return {id:r.id,product_code:r.product_code||'',cat:r.category_id,name:r.name,offerings:r.offerings||'',gaps:j(r.gaps),markets:j(r.markets),enhancements:j(r.enhancements),start_date:r.start_date||'',end_date:r.end_date||'',progress:Number(r.progress)||0,status:r.status||'Active',priority:r.priority||'Medium',owner:r.owner||'',notes:r.notes||'',accounts_opened:Number(r.accounts_opened)||0,active_accounts:Number(r.active_accounts)||0,inactive_accounts:Number(r.inactive_accounts)||0,target_onboarding:Number(r.target_onboarding)||0,is_selling:r.is_selling!=null?Boolean(r.is_selling):true,compliance_status:r.compliance_status||'Compliant',performing:r.performing||'Yes',revenue_monthly:r.revenue_monthly!=null?Number(r.revenue_monthly):null,actual_revenue_monthly:r.actual_revenue_monthly!=null?Number(r.actual_revenue_monthly):null,risk_level:r.risk_level||'Low',reporting_month:r.reporting_month||'',created_at:r.created_at||''};
 }
 function normProject(r){
   const j=v=>Array.isArray(v)?v:(v?JSON.parse(v):[]);
-  return {id:r.id,project_code:r.project_code||'',cat:r.category_id,name:r.name,description:r.description||'',start_date:r.start_date||'',end_date:r.end_date||'',progress:Number(r.progress)||0,status:r.status||'Pipeline',priority:r.priority||'Medium',owner:r.owner||'',notes:r.notes||'',budget_cost:r.budget_cost!=null?Number(r.budget_cost):0,expected_benefit:r.expected_benefit!=null?Number(r.expected_benefit):0,risk_level:r.risk_level||'Low',stage:r.stage||'Initiation',tasks:j(r.tasks),created_at:r.created_at||''};
+  return {id:r.id,project_code:r.project_code||'',cat:r.category_id,name:r.name,description:r.description||'',start_date:r.start_date||'',end_date:r.end_date||'',progress:Number(r.progress)||0,status:r.status||'Pipeline',priority:r.priority||'Medium',owner:r.owner||'',notes:r.notes||'',budget_cost:r.budget_cost!=null?Number(r.budget_cost):0,expected_benefit:r.expected_benefit!=null?Number(r.expected_benefit):0,risk_level:r.risk_level||'Low',stage:r.stage||'Initiation',tasks:j(r.tasks),reporting_month:r.reporting_month||'',created_at:r.created_at||''};
 }
 function applyDBSettings(sets){const m={};(sets||[]).forEach(r=>m[r.key]=r.value);if(m.title)SETTINGS.title=m.title;if(m.subtitle)SETTINGS.sub=m.subtitle;if(m.logo_letter)SETTINGS.ll=m.logo_letter;['navy','gold','blue','green','red','amber'].forEach(k=>{if(m['color_'+k])SETTINGS.colors[k]=m['color_'+k];});applyDOM();}
 function startRefresh(){clearInterval(refreshTimer);refreshTimer=setInterval(loadData,60000);}
@@ -1138,11 +1156,11 @@ function startRefresh(){clearInterval(refreshTimer);refreshTimer=setInterval(loa
 /* ── WRITE OPS ──────────────────────────────────────────────────── */
 async function insertProduct(d){const[p]=await sbPost('products',corePayload(d));await insertChildren(p.id,d.gaps,d.markets,d.enhancements);return p.id;}
 async function updateProduct(id,d){await sbPatch('products','?id=eq.'+id,corePayload(d));await Promise.all([sbDel('product_gaps','?product_id=eq.'+id),sbDel('product_markets','?product_id=eq.'+id),sbDel('product_enhancements','?product_id=eq.'+id)]);await insertChildren(id,d.gaps,d.markets,d.enhancements);}
-function corePayload(d){return {category_id:d.cat,name:d.name,product_code:d.code,offerings:d.offerings,start_date:d.start||null,end_date:d.end||null,progress:d.progress||0,status:d.status||'Active',priority:'Medium',owner:d.owner,notes:d.notes,accounts_opened:d.accounts_opened,active_accounts:d.active_accounts,inactive_accounts:d.inactive_accounts,target_onboarding:d.target_onboarding,is_selling:true,compliance_status:d.compliance_status,performing:'Yes',revenue_monthly:d.revenue_monthly!==''&&d.revenue_monthly!=null?Number(d.revenue_monthly):null,actual_revenue_monthly:d.actual_revenue_monthly!==''&&d.actual_revenue_monthly!=null?Number(d.actual_revenue_monthly):null,risk_level:d.risk_level,updated_at:new Date().toISOString()};}
+function corePayload(d){return {category_id:d.cat,name:d.name,product_code:d.code,offerings:d.offerings,start_date:d.start||null,end_date:d.end||null,progress:d.progress||0,status:d.status||'Active',priority:'Medium',owner:d.owner,notes:d.notes,accounts_opened:d.accounts_opened,active_accounts:d.active_accounts,inactive_accounts:d.inactive_accounts,target_onboarding:d.target_onboarding,is_selling:true,compliance_status:d.compliance_status,performing:'Yes',revenue_monthly:d.revenue_monthly!==''&&d.revenue_monthly!=null?Number(d.revenue_monthly):null,actual_revenue_monthly:d.actual_revenue_monthly!==''&&d.actual_revenue_monthly!=null?Number(d.actual_revenue_monthly):null,risk_level:d.risk_level,reporting_month:d.reporting_month||null,updated_at:new Date().toISOString()};}
 async function insertChildren(pid,gaps,markets,enhs){const p=[];if(gaps.length)p.push(sbPost('product_gaps',gaps.map((t,i)=>({product_id:pid,gap_text:t,sort_order:i}))));if(markets.length)p.push(sbPost('product_markets',markets.map((t,i)=>({product_id:pid,market_text:t,sort_order:i}))));if(enhs.length)p.push(sbPost('product_enhancements',enhs.map((t,i)=>({product_id:pid,enhancement_text:t,sort_order:i}))));await Promise.all(p);}
 async function insertProjectInDB(d){const[p]=await sbPost('projects',projPayload(d));await insertProjectTasks(p.id,d.tasks);return p.id;}
 async function updateProjectInDB(id,d){await sbPatch('projects','?id=eq.'+id,projPayload(d));await sbDel('project_tasks','?project_id=eq.'+id);await insertProjectTasks(id,d.tasks);}
-function projPayload(d){return {category_id:d.cat,name:d.name,project_code:d.code,description:d.description,start_date:d.start||null,end_date:d.end||null,progress:d.progress,status:d.status,priority:d.priority,owner:d.owner,notes:d.notes,budget_cost:d.budget_cost,expected_benefit:d.expected_benefit,risk_level:d.risk_level,stage:d.stage,updated_at:new Date().toISOString()};}
+function projPayload(d){return {category_id:d.cat,name:d.name,project_code:d.code,description:d.description,start_date:d.start||null,end_date:d.end||null,progress:d.progress,status:d.status,priority:d.priority,owner:d.owner,notes:d.notes,budget_cost:d.budget_cost,expected_benefit:d.expected_benefit,risk_level:d.risk_level,stage:d.stage,reporting_month:d.reporting_month||null,updated_at:new Date().toISOString()};}
 async function insertProjectTasks(pid,tasks){if(tasks.length)await sbPost('project_tasks',tasks.map((t,i)=>({project_id:pid,task_text:t.task_text,target_date:t.target_date||null,status:t.status||'Pending',owner:t.owner||'',sort_order:i})));}
 
 /* ── UI HELPERS ─────────────────────────────────────────────────── */
@@ -1233,19 +1251,101 @@ function renderKPIs(){
 function getTrendData(){
   const data=getActiveData(), now=new Date(), yr=now.getFullYear();
   let points=[];
+  const mNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const monthMap = {};
+  mNames.forEach((n,i)=>monthMap[n]=i);
+
   if(CURRENT_PERIOD==='monthly'){
     for(let m=0;m<12;m++) points.push({label:new Date(yr,m,1).toLocaleString('en',{month:'short'}),revenue:0,onboarding:0});
-    data.forEach(p=>{if(!p.start_date)return;const sm=new Date(p.start_date).getMonth();for(let m=sm;m<12;m++){if(CURRENT_MODE==='projects'){points[m].revenue+=(p.expected_benefit||0);points[m].onboarding+=(p.budget_cost||0);}else{points[m].revenue+=(p.actual_revenue_monthly||0);points[m].onboarding+=(p.accounts_opened||0);}}});
+    data.forEach(p=>{
+      let mIdx = p.reporting_month ? monthMap[p.reporting_month] : null;
+      if(mIdx == null && p.start_date) mIdx = new Date(p.start_date).getMonth();
+      if(mIdx == null) return;
+
+      const isProj = CURRENT_MODE==='projects';
+      const rev = isProj ? (p.expected_benefit||0) : (p.actual_revenue_monthly||0);
+      const onb = isProj ? (p.budget_cost||0) : (p.accounts_opened||0);
+
+      if(p.reporting_month) {
+        points[mIdx].revenue += rev;
+        points[mIdx].onboarding += onb;
+      } else {
+        for(let m=mIdx;m<12;m++){
+          points[m].revenue += rev;
+          points[m].onboarding += onb;
+        }
+      }
+    });
   } else if(CURRENT_PERIOD==='weekly'){
     for(let w=1;w<=52;w++) points.push({label:'W'+w,revenue:0,onboarding:0});
-    data.forEach(p=>{if(!p.start_date)return;const sd=new Date(p.start_date),jan1=new Date(yr,0,1);const sw=Math.max(1,Math.min(52,Math.ceil(((sd-jan1)/86400000+jan1.getDay()+1)/7)));for(let w=sw-1;w<52;w++){if(CURRENT_MODE==='projects'){points[w].revenue+=(p.expected_benefit||0)/52;points[w].onboarding+=(p.budget_cost||0)/52;}else{points[w].revenue+=(p.actual_revenue_monthly||0)/4.33;points[w].onboarding+=(p.accounts_opened||0)/52;}}});
+    data.forEach(p=>{
+      let mIdx = p.reporting_month ? monthMap[p.reporting_month] : null;
+      const isProj = CURRENT_MODE==='projects';
+      const rev = isProj ? (p.expected_benefit||0) : (p.actual_revenue_monthly||0);
+      const onb = isProj ? (p.budget_cost||0) : (p.accounts_opened||0);
+
+      if(p.reporting_month) {
+        const startWeek = mIdx * 4;
+        for(let w=0; w<4; w++) {
+          if(startWeek + w < 52) {
+            points[startWeek + w].revenue += rev / 4;
+            points[startWeek + w].onboarding += onb / 4;
+          }
+        }
+      } else {
+        if(!p.start_date) return;
+        const sd=new Date(p.start_date),jan1=new Date(yr,0,1);
+        const sw=Math.max(1,Math.min(52,Math.ceil(((sd-jan1)/86400000+jan1.getDay()+1)/7)));
+        for(let w=sw-1;w<52;w++){
+          points[w].revenue += isProj ? rev/52 : rev/4.33;
+          points[w].onboarding += onb/52;
+        }
+      }
+    });
   } else if(CURRENT_PERIOD==='quarterly'){
     for(let q=1;q<=4;q++) points.push({label:'Q'+q,revenue:0,onboarding:0});
-    data.forEach(p=>{if(!p.start_date)return;const sq=Math.floor(new Date(p.start_date).getMonth()/3);for(let q=sq;q<4;q++){if(CURRENT_MODE==='projects'){points[q].revenue+=(p.expected_benefit||0)*3;points[q].onboarding+=(p.budget_cost||0)*3;}else{points[q].revenue+=(p.actual_revenue_monthly||0)*3;points[q].onboarding+=(p.accounts_opened||0);}}});
+    data.forEach(p=>{
+      let mIdx = p.reporting_month ? monthMap[p.reporting_month] : null;
+      const isProj = CURRENT_MODE==='projects';
+      const rev = isProj ? (p.expected_benefit||0) : (p.actual_revenue_monthly||0);
+      const onb = isProj ? (p.budget_cost||0) : (p.accounts_opened||0);
+
+      if(p.reporting_month) {
+        const qIdx = Math.floor(mIdx / 3);
+        points[qIdx].revenue += rev;
+        points[qIdx].onboarding += onb;
+      } else {
+        if(!p.start_date) return;
+        const sq=Math.floor(new Date(p.start_date).getMonth()/3);
+        for(let q=sq;q<4;q++){
+          points[q].revenue += isProj ? rev*3 : rev*3;
+          points[q].onboarding += onb;
+        }
+      }
+    });
   } else {
     const bkts=12,dpb=Math.floor(365/bkts);
     for(let b=0;b<bkts;b++) points.push({label:'D'+(b*dpb+1),revenue:0,onboarding:0});
-    data.forEach(p=>{if(!p.start_date)return;const sd=new Date(p.start_date),jan1=new Date(yr,0,1);const sb=Math.min(bkts-1,Math.floor(Math.max(0,(sd-jan1)/86400000)/dpb));for(let b=sb;b<bkts;b++){if(CURRENT_MODE==='projects'){points[b].revenue+=(p.expected_benefit||0)*12;points[b].onboarding+=(p.budget_cost||0)*12;}else{points[b].revenue+=(p.actual_revenue_monthly||0)*12;points[b].onboarding+=(p.accounts_opened||0);}}});
+    data.forEach(p=>{
+      let mIdx = p.reporting_month ? monthMap[p.reporting_month] : null;
+      const isProj = CURRENT_MODE==='projects';
+      const rev = isProj ? (p.expected_benefit||0) : (p.actual_revenue_monthly||0);
+      const onb = isProj ? (p.budget_cost||0) : (p.accounts_opened||0);
+
+      if(p.reporting_month) {
+        const b = mIdx;
+        points[b].revenue += rev;
+        points[b].onboarding += onb;
+      } else {
+        if(!p.start_date) return;
+        const sd=new Date(p.start_date),jan1=new Date(yr,0,1);
+        const sb=Math.min(bkts-1,Math.floor(Math.max(0,(sd-jan1)/86400000)/dpb));
+        for(let b=sb;b<bkts;b++){
+          points[b].revenue += isProj ? rev*12 : rev*12;
+          points[b].onboarding += onb;
+        }
+      }
+    });
   }
   return points;
 }
@@ -1432,7 +1532,7 @@ function closeAdd(){document.getElementById('add-overlay').classList.remove('ope
 function closeAddOut(e){if(e.target===document.getElementById('add-overlay'))closeAdd();}
 
 function clearForm(){
-  ['f-cat','f-name','f-code','f-owner','f-offerings','f-accounts','f-active-acc',
+  ['f-cat','f-rep-month','f-name','f-code','f-owner','f-offerings','f-accounts','f-active-acc',
    'f-inactive-acc','f-target-onboarding','f-onboarding-perf','f-revenue','f-actual-revenue',
    'f-product-roi','f-notes','f-budget-cost','f-expected-benefit','f-roi','t-text','t-date','t-owner']
   .forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
@@ -1453,6 +1553,7 @@ function toggleCatFields(){
 }
 function fillFormProduct(p){
   document.getElementById('f-cat').value=p.cat;
+  document.getElementById('f-rep-month').value=p.reporting_month||'';
   document.getElementById('f-name').value=p.name;
   document.getElementById('f-code').value=p.product_code;
   document.getElementById('f-owner').value=p.owner;
@@ -1472,6 +1573,7 @@ function fillFormProduct(p){
 }
 function fillFormProject(p){
   document.getElementById('f-cat').value=p.cat;
+  document.getElementById('f-rep-month').value=p.reporting_month||'';
   document.getElementById('f-name').value=p.name;
   document.getElementById('f-code').value=p.project_code;
   document.getElementById('f-owner').value=p.owner;
@@ -1559,6 +1661,7 @@ async function saveProduct(){
   if(!ok()){toast('❌ Supabase not configured');return;}
   const btn=document.getElementById('mod-save-btn');btn.disabled=true;btn.textContent=editId?'Updating…':'Saving…';
   const d={cat,name,code:document.getElementById('f-code').value,offerings:document.getElementById('f-offerings').value,gaps:[...formGaps],markets:[...formMkts],enhancements:[...formEnhs],start:null,end:null,
+    reporting_month:document.getElementById('f-rep-month').value||null,
     progress:0,status:'Active',owner:document.getElementById('f-owner').value,notes:document.getElementById('f-notes').value,
     accounts_opened:Number(document.getElementById('f-accounts').value)||0,active_accounts:Number(document.getElementById('f-active-acc').value)||0,inactive_accounts:Number(document.getElementById('f-inactive-acc').value)||0,
     target_onboarding:Number(document.getElementById('f-target-onboarding').value)||0,is_selling:true,compliance_status:document.getElementById('f-compliance').value,performing:'Yes',
@@ -1578,6 +1681,7 @@ async function saveProject(){
   const btn=document.getElementById('mod-save-btn');btn.disabled=true;btn.textContent=editId?'Updating…':'Saving…';
   const fpri=document.getElementById('f-priority');
   const d={cat,name,code:document.getElementById('f-code').value,description:document.getElementById('f-offerings').value,start,end:document.getElementById('f-end').value,
+    reporting_month:document.getElementById('f-rep-month').value||null,
     progress:Math.min(100,Math.max(0,Number(document.getElementById('f-progress').value)||0)),
     status:document.getElementById('f-status').value,priority:fpri?fpri.value:'Medium',owner:document.getElementById('f-owner').value,notes:document.getElementById('f-notes').value,
     budget_cost:Number(document.getElementById('f-budget-cost').value)||0,expected_benefit:Number(document.getElementById('f-expected-benefit').value)||0,
@@ -1609,6 +1713,7 @@ function openView(id){
       <div class="detail-grid">
         <div class="df"><label>Category</label><div class="val" style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:${cc};border-radius:2px;display:inline-block;flex-shrink:0"></span>${(CAT_LBL[p.cat]||p.cat).replace(/^\\S+\\s/,'')}</div></div>
         <div class="df"><label>Product Code</label><div class="val">${p.product_code||'—'}</div></div>
+        <div class="df"><label>Reporting Month</label><div class="val" style="font-weight:700;color:var(--navy)">${p.reporting_month||'—'}</div></div>
         <div class="df"><label>Owner / Team</label><div class="val">${p.owner||'—'}</div></div>
         <div class="df"><label>Risk Level</label><div class="val"><span class="badge ${RSK_CSS[p.risk_level]||'b-low-risk'}">${p.risk_level||'Low'}</span></div></div>
         <div class="sec-sep"></div>
@@ -1643,6 +1748,7 @@ function openView(id){
       <div class="detail-grid">
         <div class="df"><label>Category</label><div class="val" style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:${cc};border-radius:2px;display:inline-block"></span>${(CAT_LBL[p.cat]||p.cat).replace(/^\\S+\\s/,'')}</div></div>
         <div class="df"><label>Project Code</label><div class="val">${p.project_code||'—'}</div></div>
+        <div class="df"><label>Reporting Month</label><div class="val" style="font-weight:700;color:var(--navy)">${p.reporting_month||'—'}</div></div>
         <div class="df"><label>Sponsor / Owner</label><div class="val">${p.owner||'—'}</div></div>
         <div class="df"><label>Timeline</label><div class="val">${p.start_date||'—'} → ${p.end_date||'Ongoing'}</div></div>
         <div class="sec-sep"></div>
@@ -1689,13 +1795,13 @@ async function doDelete(id){
 
 /* ── ADMIN ──────────────────────────────────────────────────────── */
 const SQL_SETUP=`-- ProductPulse Dashboard — Full SQL Setup Script
-CREATE TABLE IF NOT EXISTS products (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, product_code TEXT, category_id TEXT NOT NULL, name TEXT NOT NULL, offerings TEXT, start_date DATE, end_date DATE, progress INTEGER DEFAULT 0, status TEXT DEFAULT 'Pipeline', priority TEXT DEFAULT 'Medium', owner TEXT, notes TEXT, accounts_opened INTEGER DEFAULT 0, active_accounts INTEGER DEFAULT 0, inactive_accounts INTEGER DEFAULT 0, target_onboarding INTEGER DEFAULT 0, is_selling BOOLEAN DEFAULT true, compliance_status TEXT DEFAULT 'Compliant', performing TEXT DEFAULT 'Yes', revenue_monthly NUMERIC(15,2), actual_revenue_monthly NUMERIC(15,2), risk_level TEXT DEFAULT 'Low', created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS products (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, product_code TEXT, category_id TEXT NOT NULL, name TEXT NOT NULL, offerings TEXT, start_date DATE, end_date DATE, progress INTEGER DEFAULT 0, status TEXT DEFAULT 'Pipeline', priority TEXT DEFAULT 'Medium', owner TEXT, notes TEXT, accounts_opened INTEGER DEFAULT 0, active_accounts INTEGER DEFAULT 0, inactive_accounts INTEGER DEFAULT 0, target_onboarding INTEGER DEFAULT 0, is_selling BOOLEAN DEFAULT true, compliance_status TEXT DEFAULT 'Compliant', performing TEXT DEFAULT 'Yes', revenue_monthly NUMERIC(15,2), actual_revenue_monthly NUMERIC(15,2), risk_level TEXT DEFAULT 'Low', reporting_month TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS product_gaps (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, product_id UUID REFERENCES products(id) ON DELETE CASCADE, gap_text TEXT, sort_order INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS product_markets (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, product_id UUID REFERENCES products(id) ON DELETE CASCADE, market_text TEXT, sort_order INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS product_enhancements (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, product_id UUID REFERENCES products(id) ON DELETE CASCADE, enhancement_text TEXT, sort_order INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS dashboard_settings (key TEXT PRIMARY KEY, value TEXT);
 CREATE OR REPLACE VIEW products_full AS SELECT p.*, COALESCE((SELECT json_agg(g.gap_text ORDER BY g.sort_order) FROM product_gaps g WHERE g.product_id=p.id),'[]') AS gaps, COALESCE((SELECT json_agg(m.market_text ORDER BY m.sort_order) FROM product_markets m WHERE m.product_id=p.id),'[]') AS markets, COALESCE((SELECT json_agg(e.enhancement_text ORDER BY e.sort_order) FROM product_enhancements e WHERE e.product_id=p.id),'[]') AS enhancements FROM products p;
-CREATE TABLE IF NOT EXISTS projects (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, project_code TEXT, category_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, stage TEXT DEFAULT 'Initiation', start_date DATE, end_date DATE, progress INTEGER DEFAULT 0, status TEXT DEFAULT 'Pipeline', priority TEXT DEFAULT 'Medium', owner TEXT, notes TEXT, budget_cost NUMERIC(15,2) DEFAULT 0, expected_benefit NUMERIC(15,2) DEFAULT 0, risk_level TEXT DEFAULT 'Low', created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS projects (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, project_code TEXT, category_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, stage TEXT DEFAULT 'Initiation', start_date DATE, end_date DATE, progress INTEGER DEFAULT 0, status TEXT DEFAULT 'Pipeline', priority TEXT DEFAULT 'Medium', owner TEXT, notes TEXT, budget_cost NUMERIC(15,2) DEFAULT 0, expected_benefit NUMERIC(15,2) DEFAULT 0, risk_level TEXT DEFAULT 'Low', reporting_month TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS project_tasks (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, task_text TEXT NOT NULL, target_date DATE, status TEXT DEFAULT 'Pending', owner TEXT, sort_order INTEGER DEFAULT 0);
 CREATE OR REPLACE VIEW projects_full AS SELECT p.*, COALESCE((SELECT json_agg(json_build_object('id',t.id,'task_text',t.task_text,'target_date',t.target_date,'status',t.status,'owner',t.owner,'sort_order',t.sort_order) ORDER BY t.sort_order) FROM project_tasks t WHERE t.project_id=p.id),'[]') AS tasks FROM projects p;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY; ALTER TABLE product_gaps ENABLE ROW LEVEL SECURITY; ALTER TABLE product_markets ENABLE ROW LEVEL SECURITY; ALTER TABLE product_enhancements ENABLE ROW LEVEL SECURITY; ALTER TABLE dashboard_settings ENABLE ROW LEVEL SECURITY; ALTER TABLE projects ENABLE ROW LEVEL SECURITY; ALTER TABLE project_tasks ENABLE ROW LEVEL SECURITY;
