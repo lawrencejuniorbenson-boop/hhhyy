@@ -2070,7 +2070,7 @@
   <div id="login-screen" class="login-screen" style="display:none">
     <div class="login-card">
       <div class="login-logo">🔒</div>
-      <h2 id="login-title">ProductPulse Sign In</h2>
+      <h2 id="login-title">Sign In</h2>
       <p id="login-subtitle">Enter credentials to access secure portfolio dashboard</p>
       
       <div class="login-tabs">
@@ -3513,7 +3513,7 @@
       authMode = mode;
       document.getElementById('tab-login').classList.toggle('active', mode === 'login');
       document.getElementById('tab-register').classList.toggle('active', mode === 'register');
-      document.getElementById('login-title').textContent = mode === 'login' ? 'ProductPulse Sign In' : 'Create Banking Account';
+      document.getElementById('login-title').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
       document.getElementById('login-subtitle').textContent = mode === 'login' ? 'Enter credentials to access secure portfolio dashboard' : 'Register a new authenticated user on the platform';
       document.getElementById('btn-auth-submit').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
     }
