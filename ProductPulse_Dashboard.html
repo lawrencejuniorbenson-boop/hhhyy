@@ -774,13 +774,9 @@ body.mode-portfolio .mode-product-only,.mode-portfolio .mode-project-only{displa
           </div>
         </div>
 
-        <!-- Project-only: CBA -->
-        <div class="sec-hd mode-project-only"><div class="sec-num">2</div><span>Cost-Benefit Analysis</span></div>
-        <div class="f mode-project-only"><label>Budget / Estimated Cost (GH₵)</label><input id="f-budget-cost" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcProjectROI()"></div>
-        <div class="f mode-project-only"><label>Expected Monthly Benefit (GH₵)</label><input id="f-expected-benefit" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcProjectROI()"></div>
-        <div class="f mode-project-only"><label>Net Benefit &amp; ROI <span style="font-size:10px;color:var(--muted);font-weight:400">(auto)</span></label>
-          <input id="f-roi" type="text" readonly style="background:#F1F5F9;color:var(--muted);cursor:not-allowed;border-color:var(--bdr)" placeholder="Enter cost and benefit…">
-        </div>
+        <!-- Project-only: Financials -->
+        <div class="sec-hd mode-project-only"><div class="sec-num">2</div><span>Project Budget</span></div>
+        <div class="f mode-project-only"><label>Budget / Estimated Cost (GH₵)</label><input id="f-budget-cost" type="number" min="0" step="0.01" placeholder="0.00"></div>
 
         <!-- Section 3: Compliance & Risk -->
         <div class="sec-hd"><div class="sec-num">3</div><span id="lbl-sec-3">Compliance &amp; Risk</span></div>
@@ -1058,7 +1054,7 @@ function navigateTo(mode, cat){
   if(mode==='products'){
     thead.innerHTML=`<tr><th>#</th><th>Product</th><th>Category</th><th>Accounts Opened</th><th>Onboarding Target</th><th>Monthly Revenue</th><th>Compliance</th><th>Risk</th><th>Actions</th></tr>`;
   } else if(mode==='projects'){
-    thead.innerHTML=`<tr><th>#</th><th>Project</th><th>Category</th><th>Timeline</th><th>Budget Cost</th><th>Expected Benefit</th><th>Net Benefit / ROI</th><th>Stage</th><th>Risk</th><th>Status</th><th>Priority</th><th>Progress</th><th>Actions</th></tr>`;
+    thead.innerHTML=`<tr><th>#</th><th>Project</th><th>Category</th><th>Timeline</th><th>Budget Cost</th><th>Stage</th><th>Risk</th><th>Status</th><th>Priority</th><th>Progress</th><th>Actions</th></tr>`;
   } else {
     thead.innerHTML=`<tr><th>#</th><th>Initiative</th><th>Type</th><th>Category</th><th>Owner</th><th>Timeline</th><th>Budget / Target Rev</th><th>Benefit / Actual Rev</th><th>Progress</th><th>Status</th><th>Priority</th><th>Actions</th></tr>`;
   }
@@ -1195,33 +1191,26 @@ function renderKPIs(){
   } else if(CURRENT_MODE==='projects'){
     const active=vd.filter(p=>p.status==='Active').length;
     const cost=vd.reduce((s,p)=>s+(p.budget_cost||0),0);
-    const benefit=vd.reduce((s,p)=>s+(p.expected_benefit||0),0);
-    const net=benefit-cost, roi=cost>0?Math.round((net/cost)*100):0;
     const avgProg=total?Math.round(vd.reduce((s,p)=>s+p.progress,0)/total):0;
     const highRisk=vd.filter(p=>['High','Critical'].includes(p.risk_level)).length;
     document.getElementById('kpi-row').innerHTML=`
-      <div class="kpi k1"><div class="kpi-ico">🚀</div><div class="kpi-lbl">Total Projects</div><div class="kpi-val">${total}</div><div class="kpi-sub">${(CAT_LBL[currentCat]||'All').replace(/^\\S+\\s/,'')}</div></div>
+      <div class="kpi k1"><div class="kpi-ico">🚀</div><div class="kpi-lbl">Total Projects</div><div class="kpi-val">${total}</div><div class="kpi-sub">${(CAT_LBL[currentCat]||'All').replace(/^\S+\s/,'')}</div></div>
       <div class="kpi k2"><div class="kpi-ico">⚡</div><div class="kpi-lbl">Active Projects</div><div class="kpi-val">${active}</div><div class="kpi-sub">${vd.filter(p=>p.status==='Pipeline').length} in pipeline</div></div>
       <div class="kpi k3"><div class="kpi-ico">💳</div><div class="kpi-lbl">${lbl} Budget</div><div class="kpi-val">${CCompact(cost*scale)}</div><div class="kpi-sub">Allocated budget</div></div>
-      <div class="kpi k4"><div class="kpi-ico">📈</div><div class="kpi-lbl">${lbl} Benefit</div><div class="kpi-val">${CCompact(benefit*scale)}</div><div class="kpi-sub">Expected returns</div></div>
-      <div class="kpi k5"><div class="kpi-ico">💵</div><div class="kpi-lbl">${lbl} Net Benefit</div><div class="kpi-val">${CCompact(net*scale)}</div><div class="kpi-sub" style="color:${net>=0?'var(--green)':'var(--red)'};font-weight:700">${net>=0?'Surplus':'Deficit'}</div></div>
-      <div class="kpi k6"><div class="kpi-ico">📊</div><div class="kpi-lbl">CBA ROI</div><div class="kpi-val">${roi}%</div><div class="kpi-sub">Return on investment</div></div>
-      <div class="kpi k7"><div class="kpi-ico">📐</div><div class="kpi-lbl">Avg Progress</div><div class="kpi-val">${avgProg}%</div><div class="kpi-sub">${highRisk} high/critical risk</div></div>`;
+      <div class="kpi k4"><div class="kpi-ico">📐</div><div class="kpi-lbl">Avg Progress</div><div class="kpi-val">${avgProg}%</div><div class="kpi-sub">${highRisk} high/critical risk</div></div>`;
   } else {
     const ap=PRODUCTS_DATA.filter(p=>['Active','In Review'].includes(p.status));
     const aj=PROJECTS_DATA.filter(p=>['Active','In Review'].includes(p.status));
     const cost=aj.reduce((s,p)=>s+(p.budget_cost||0),0);
-    const ben=aj.reduce((s,p)=>s+(p.expected_benefit||0),0);
     const rev=ap.reduce((s,p)=>s+(p.actual_revenue_monthly||0),0);
     const hr=[...ap,...aj].filter(p=>['High','Critical'].includes(p.risk_level)).length;
     document.getElementById('kpi-row').innerHTML=`
       <div class="kpi k1"><div class="kpi-ico">💼</div><div class="kpi-lbl">Ongoing Products</div><div class="kpi-val">${ap.length}</div><div class="kpi-sub">Active bank products</div></div>
       <div class="kpi k2"><div class="kpi-ico">🚀</div><div class="kpi-lbl">Ongoing Projects</div><div class="kpi-val">${aj.length}</div><div class="kpi-sub">Active in-flight</div></div>
       <div class="kpi k3"><div class="kpi-ico">💳</div><div class="kpi-lbl">${lbl} Budget</div><div class="kpi-val">${CCompact(cost*scale)}</div><div class="kpi-sub">Project spend</div></div>
-      <div class="kpi k4"><div class="kpi-ico">📈</div><div class="kpi-lbl">${lbl} Benefit</div><div class="kpi-val">${CCompact(ben*scale)}</div><div class="kpi-sub">Expected returns</div></div>
-      <div class="kpi k5"><div class="kpi-ico">💰</div><div class="kpi-lbl">${lbl} Product Revenue</div><div class="kpi-val">${CCompact(rev*scale)}</div><div class="kpi-sub">Active product revenue</div></div>
-      <div class="kpi k6"><div class="kpi-ico">🛡️</div><div class="kpi-lbl">Compliant Products</div><div class="kpi-val">${ap.filter(p=>p.compliance_status==='Compliant').length}</div><div class="kpi-sub">Of ${ap.length} active</div></div>
-      <div class="kpi k7"><div class="kpi-ico">⚠️</div><div class="kpi-lbl">High Risk</div><div class="kpi-val">${hr}</div><div class="kpi-sub">Products &amp; Projects</div></div>`;
+      <div class="kpi k4"><div class="kpi-ico">💰</div><div class="kpi-lbl">${lbl} Product Revenue</div><div class="kpi-val">${CCompact(rev*scale)}</div><div class="kpi-sub">Active product revenue</div></div>
+      <div class="kpi k5"><div class="kpi-ico">🛡️</div><div class="kpi-lbl">Compliant Products</div><div class="kpi-val">${ap.filter(p=>p.compliance_status==='Compliant').length}</div><div class="kpi-sub">Of ${ap.length} active</div></div>
+      <div class="kpi k6"><div class="kpi-ico">⚠️</div><div class="kpi-lbl">High Risk</div><div class="kpi-val">${hr}</div><div class="kpi-sub">Products &amp; Projects</div></div>`;
   }
 }
 
@@ -1347,7 +1336,7 @@ function renderCharts(){
     const top=[...vd].sort((a,b)=>b.accounts_opened-a.accounts_opened).slice(0,6);
     charts.acct=new Chart(document.getElementById('acctChart'),{type:'bar',data:{labels:top.map(p=>p.name.length>16?p.name.slice(0,16)+'…':p.name),datasets:[{label:'Active',data:top.map(p=>p.active_accounts*scale),backgroundColor:'#059669',borderRadius:4,stack:'s'},{label:'Inactive',data:top.map(p=>p.inactive_accounts*scale),backgroundColor:'#CBD5E1',borderRadius:4,stack:'s'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10}}},scales:{x:{beginAtZero:true,ticks:{font:{size:9}},grid:{color:'#F1F5FB'}},y:{ticks:{font:{size:9}},grid:{display:false}}}}});
   } else if(CURRENT_MODE==='projects'){
-    if(t1)t1.textContent='Projects by Stage'; if(t2)t2.textContent='Risk Breakdown'; if(t4)t4.textContent='Cost vs Benefit (Top 6)';
+    if(t1)t1.textContent='Projects by Stage'; if(t2)t2.textContent='Risk Breakdown'; if(t4)t4.textContent='Budget by Project (Top 6)';
     dc('cat');
     const stages=['Initiation','Planning','Execution','Testing','Deployment','Closed'],scols=['#2563EB','#7C3AED','#D97706','#0891B2','#059669','#64748B'];
     charts.cat=new Chart(document.getElementById('catChart'),{type:'doughnut',data:{labels:stages,datasets:[{data:stages.map(s=>vd.filter(p=>p.stage===s).length),backgroundColor:scols,borderWidth:2,borderColor:'#fff',hoverOffset:7}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:10,boxWidth:10}}}}});
@@ -1356,7 +1345,7 @@ function renderCharts(){
     charts.comp=new Chart(document.getElementById('compChart'),{type:'bar',data:{labels:rk,datasets:[{data:rk.map(k=>vd.filter(p=>p.risk_level===k).length),backgroundColor:rc,borderRadius:6,barPercentage:.65}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:9},stepSize:1},grid:{color:'#F1F5FB'}},x:{ticks:{font:{size:9}},grid:{display:false}}}}});
     dc('acct');
     const top=[...vd].sort((a,b)=>b.budget_cost-a.budget_cost).slice(0,6);
-    charts.acct=new Chart(document.getElementById('acctChart'),{type:'bar',data:{labels:top.map(p=>p.name.length>16?p.name.slice(0,16)+'…':p.name),datasets:[{label:'Budget',data:top.map(p=>p.budget_cost*scale),backgroundColor:'#E2E8F0',borderRadius:4},{label:'Benefit',data:top.map(p=>p.expected_benefit*scale),backgroundColor:'#059669',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10}}},scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{beginAtZero:true,ticks:{font:{size:9}},grid:{color:'#F1F5FB'}}}}});
+    charts.acct=new Chart(document.getElementById('acctChart'),{type:'bar',data:{labels:top.map(p=>p.name.length>16?p.name.slice(0,16)+'…':p.name),datasets:[{label:'Budget',data:top.map(p=>p.budget_cost*scale),backgroundColor:'#2563EB',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10}}},scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{beginAtZero:true,ticks:{font:{size:9}},grid:{color:'#F1F5FB'}}}}});
   } else {
     if(t1)t1.textContent='By Category'; if(t2)t2.textContent='Risk Profile'; if(t4)t4.textContent='Top by Progress';
     dc('cat');
@@ -1374,11 +1363,17 @@ function renderCharts(){
   const td=getTrendData();
   const revLabel=CURRENT_MODE==='projects'?'Expected Benefits':'Revenue';
   const accLabel=CURRENT_MODE==='projects'?'Budget Cost':'Accounts Opened';
-  if(t3Rev) t3Rev.textContent=revLabel+' Trend — '+periodLabel;
+  
+  const cardRev = document.getElementById('c3-title-rev') ? document.getElementById('c3-title-rev').closest('.chart-card') : null;
+  if(CURRENT_MODE==='projects'){
+    if(cardRev) cardRev.style.display='none';
+  } else {
+    if(cardRev) cardRev.style.display='block';
+    if(t3Rev) t3Rev.textContent=revLabel+' Trend — '+periodLabel;
+    charts.trendRev=new Chart(document.getElementById('revenueTrendChart'),{type:'line',data:{labels:td.map(t=>t.label),datasets:[{label:revLabel,data:td.map(t=>t.revenue),borderColor:'#2563EB',backgroundColor:'rgba(37,99,235,0.1)',fill:true,tension:0.35,pointRadius:CURRENT_PERIOD==='yearly'?0:3}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{y:{type:'linear',display:true,grid:{color:'#F1F5FB'},ticks:{font:{size:8}}},x:{ticks:{font:{size:8},maxTicksLimit:CURRENT_PERIOD==='weekly'?13:12,autoSkip:true},grid:{display:false}}},plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10}},tooltip:{backgroundColor:'rgba(15,32,53,0.9)',titleFont:{size:11},bodyFont:{size:10}}}}});
+  }
+  
   if(t3Onb) t3Onb.textContent=accLabel+' Trend — '+periodLabel;
-  
-  charts.trendRev=new Chart(document.getElementById('revenueTrendChart'),{type:'line',data:{labels:td.map(t=>t.label),datasets:[{label:revLabel,data:td.map(t=>t.revenue),borderColor:'#2563EB',backgroundColor:'rgba(37,99,235,0.1)',fill:true,tension:0.35,pointRadius:CURRENT_PERIOD==='yearly'?0:3}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{y:{type:'linear',display:true,grid:{color:'#F1F5FB'},ticks:{font:{size:8}}},x:{ticks:{font:{size:8},maxTicksLimit:CURRENT_PERIOD==='weekly'?13:12,autoSkip:true},grid:{display:false}}},plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10}},tooltip:{backgroundColor:'rgba(15,32,53,0.9)',titleFont:{size:11},bodyFont:{size:10}}}}});
-  
   charts.trendOnb=new Chart(document.getElementById('onboardingTrendChart'),{type:'line',data:{labels:td.map(t=>t.label),datasets:[{label:accLabel,data:td.map(t=>t.onboarding),borderColor:'#D4A843',backgroundColor:'rgba(212,168,67,0.1)',fill:true,tension:0.35,pointRadius:CURRENT_PERIOD==='yearly'?0:3}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{y:{type:'linear',display:true,grid:{color:'#F1F5FB'},ticks:{font:{size:8}}},x:{ticks:{font:{size:8},maxTicksLimit:CURRENT_PERIOD==='weekly'?13:12,autoSkip:true},grid:{display:false}}},plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10}},tooltip:{backgroundColor:'rgba(15,32,53,0.9)',titleFont:{size:11},bodyFont:{size:10}}}}});
 }
 
@@ -1420,8 +1415,6 @@ function renderTable(){
         <td><span style="display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:11px"><span style="width:8px;height:8px;background:${cc};border-radius:2px;flex-shrink:0"></span>${cn}</span></td>
         <td><div style="font-size:11.5px;font-weight:600;color:var(--navy)">${p.start_date||'—'}</div><div style="font-size:10px;color:var(--muted)">to ${p.end_date||'Ongoing'}</div></td>
         <td style="font-weight:700;color:var(--navy)">${C(p.budget_cost*scale)}</td>
-        <td style="font-weight:700;color:var(--green)">${C(p.expected_benefit*scale)}</td>
-        <td><div class="rev-stat"><div class="act" style="color:${net>=0?'var(--green)':'var(--red)'};font-weight:800">Net: ${C(net*scale)}</div><div class="exp">${p.budget_cost>0?roi+'% ROI':'—'}</div></div></td>
         <td><span class="badge ${stageCss}">${p.stage}</span></td>
         <td><span class="badge ${RSK_CSS[p.risk_level]||'b-low-risk'}">${p.risk_level||'Low'}</span></td>
         <td><span class="badge ${STS_CSS[p.status]||'b-pipeline'}">${p.status}</span></td>
@@ -1444,7 +1437,7 @@ function renderTable(){
         <td><div style="font-size:11px;color:var(--navy)">${p.owner||'—'}</div></td>
         <td><div style="font-size:11px;font-weight:600;color:var(--navy)">${p.start_date||'—'}</div><div style="font-size:10px;color:var(--muted)">to ${p.end_date||'Ongoing'}</div></td>
         <td><div style="font-size:11.5px;font-weight:700;color:var(--navy)">${C(cost*scale)}</div><div style="font-size:9.5px;color:var(--muted)">${isProd?'Target Rev':'Budget'}</div></td>
-        <td><div style="font-size:11.5px;font-weight:700;color:var(--green)">${C(benefit*scale)}</div><div style="font-size:9.5px;color:var(--muted)">${isProd?'Actual Rev':'Benefit'}</div></td>
+        <td><div style="font-size:11.5px;font-weight:700;color:var(--green)">${isProd ? C(benefit*scale) : '—'}</div><div style="font-size:9.5px;color:var(--muted)">${isProd?'Actual Rev':'—'}</div></td>
         <td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pcl}" style="width:${pc}%"></div></div><span class="prog-pct">${pc}%</span></div></td>
         <td><span class="badge ${STS_CSS[p.status]||'b-pipeline'}">${p.status}</span></td>
         <td><span class="badge ${PRI_CSS[p.priority]||'b-med'}">${p.priority}</span></td>
@@ -1512,7 +1505,7 @@ function closeAddOut(e){if(e.target===document.getElementById('add-overlay'))clo
 function clearForm(){
   ['f-cat','f-rep-month','f-name','f-code','f-owner','f-offerings','f-accounts','f-active-acc',
    'f-inactive-acc','f-target-onboarding','f-onboarding-perf','f-revenue','f-actual-revenue',
-   'f-product-roi','f-notes','f-budget-cost','f-expected-benefit','f-roi','t-text','t-date','t-owner']
+   'f-product-roi','f-notes','f-budget-cost','t-text','t-date','t-owner']
   .forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   document.getElementById('f-compliance').value='Compliant';
   document.getElementById('f-risk').value='Low';
@@ -1557,8 +1550,7 @@ function fillFormProject(p){
   document.getElementById('f-owner').value=p.owner;
   document.getElementById('f-offerings').value=p.description;
   document.getElementById('f-budget-cost').value=p.budget_cost||'';
-  document.getElementById('f-expected-benefit').value=p.expected_benefit||'';
-  calcProjectROI();
+  
   document.getElementById('f-stage').value=p.stage;
   document.getElementById('f-risk').value=p.risk_level;
   document.getElementById('f-start').value=p.start_date;
@@ -1662,7 +1654,7 @@ async function saveProject(){
     reporting_month:document.getElementById('f-rep-month').value||null,
     progress:Math.min(100,Math.max(0,Number(document.getElementById('f-progress').value)||0)),
     status:document.getElementById('f-status').value,priority:fpri?fpri.value:'Medium',owner:document.getElementById('f-owner').value,notes:document.getElementById('f-notes').value,
-    budget_cost:Number(document.getElementById('f-budget-cost').value)||0,expected_benefit:Number(document.getElementById('f-expected-benefit').value)||0,
+    budget_cost:Number(document.getElementById('f-budget-cost').value)||0,expected_benefit:0,
     risk_level:document.getElementById('f-risk').value,stage:document.getElementById('f-stage').value,tasks:[...formTasks]};
   try{
     if(editId){await updateProjectInDB(editId,d);toast('✅ Project updated!');}else{await insertProjectInDB(d);toast('✅ Project added!');}
@@ -1731,8 +1723,6 @@ function openView(id){
         <div class="df"><label>Timeline</label><div class="val">${p.start_date||'—'} → ${p.end_date||'Ongoing'}</div></div>
         <div class="sec-sep"></div>
         <div class="df"><label>Budget / Cost</label><div class="val" style="font-size:18px;font-weight:800;color:var(--navy)">${C(p.budget_cost*scale)}</div></div>
-        <div class="df"><label>Expected Benefit</label><div class="val" style="font-size:18px;font-weight:800;color:var(--green)">${C(p.expected_benefit*scale)}</div></div>
-        <div class="df full"><label>Net Benefit &amp; ROI</label><div class="val"><span class="badge ${net>=0?'b-compliant':'b-noncompliant'}" style="font-size:12px;padding:5px 12px">Net: ${C(net*scale)} (${p.budget_cost>0?roi+'% ROI':'—'})</span></div></div>
         ${p.description?`<div class="sec-sep"></div><div class="df full"><label>Description &amp; Objectives</label><div class="txt-box">${p.description}</div></div>`:''}
         <div class="sec-sep"></div>
         <div class="df full"><label>Implementation Plan</label>
