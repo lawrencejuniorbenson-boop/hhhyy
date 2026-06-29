@@ -2281,7 +2281,7 @@
       <button class="sb-footer-btn sb-add-btn" id="sb-add-btn" onclick="openAdd()">
         ＋ <span id="btn-add-text">Add Product</span>
       </button>
-      <button class="sb-footer-btn sb-admin-btn" onclick="openAdmin()">
+      <button class="sb-footer-btn sb-admin-btn" id="sb-admin-settings-btn" onclick="openAdmin()">
         ⚙ Admin Settings
       </button>
       <button class="sb-footer-btn sb-admin-btn" onclick="logout()" style="background:rgba(220,38,38,0.12);color:#FCA5A5;border:1px solid rgba(220,38,38,0.22)">
@@ -3146,6 +3146,10 @@
       const navAudit = document.getElementById('nav-audit');
       if (navAudit) {
         navAudit.style.display = IS_ADMIN ? '' : 'none';
+      }
+      const adminBtn = document.getElementById('sb-admin-settings-btn');
+      if (adminBtn) {
+        adminBtn.style.display = IS_ADMIN ? '' : 'none';
       }
     }
 
@@ -4197,6 +4201,7 @@ CREATE POLICY "Allow approved audit logs" ON audit_logs FOR ALL TO authenticated
   USING (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true))
   WITH CHECK (EXISTS (SELECT 1 FROM user_approvals WHERE email = auth.jwt()->>'email' AND approved = true));`;
     function openAdmin() {
+      if (!IS_ADMIN) { toast('❌ Only administrators can access Admin Settings.'); return; }
       document.getElementById('s-name').value = SETTINGS.title;
       document.getElementById('s-sub').value = SETTINGS.sub;
       document.getElementById('s-ll').value = SETTINGS.ll || 'P';
