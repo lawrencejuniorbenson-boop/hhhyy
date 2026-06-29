@@ -1945,6 +1945,53 @@
       margin-top: 8px
     }
   
+/* ── AUDIT TRAIL RESPONSIVE STYLES ─────────────────────────────── */
+    @media (max-width: 768px) {
+      #page-audit .tbl-wrap table, 
+      #page-audit .tbl-wrap thead, 
+      #page-audit .tbl-wrap tbody, 
+      #page-audit .tbl-wrap th, 
+      #page-audit .tbl-wrap td, 
+      #page-audit .tbl-wrap tr {
+        display: block !important;
+      }
+      #page-audit .tbl-wrap thead {
+        display: none !important;
+      }
+      #page-audit .tbl-wrap tr {
+        margin-bottom: 12px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid var(--bdr);
+        border-radius: 8px;
+        padding: 12px;
+      }
+      #page-audit .tbl-wrap td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 8px 0 !important;
+        border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+        font-size: 11.5px !important;
+        text-align: right !important;
+        box-sizing: border-box;
+      }
+      #page-audit .tbl-wrap td:last-child {
+        border-bottom: none !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        text-align: left !important;
+      }
+      #page-audit .tbl-wrap td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        font-size: 9px;
+        letter-spacing: 0.5px;
+        margin-right: 12px;
+      }
+    }
+
 /* ── LOGIN PAGE STYLES ──────────────────────────────────────────── */
 .login-screen {
   position: fixed;
@@ -3582,9 +3629,9 @@
       clearInactivityTimers();
       if (!AUTH_TOKEN) return;
       
-      // Warning triggers at 40s (leaves 20s warning before 60s total)
-      warningTimer = setTimeout(showInactivityWarning, 40000);
-      inactivityTimer = setTimeout(performAutoLogout, 60000);
+      // Warning triggers at 3m 40s (220000ms), auto logout at 4m (240000ms)
+      warningTimer = setTimeout(showInactivityWarning, 220000);
+      inactivityTimer = setTimeout(performAutoLogout, 240000);
     }
 
     function clearInactivityTimers() {
@@ -3703,6 +3750,9 @@
         document.getElementById('app-container').style.display = 'flex';
         toast('🔑 Welcome back!');
         startInactivityTimer();
+        try {
+          await logAuditAction('LOGIN', 'system', null, `User logged in: ${emailVal}`);
+        } catch (e) { console.error(e); }
         await loadData();
       } catch (err) {
         toast('❌ Sign in failed: ' + err.message);
@@ -3791,12 +3841,12 @@
           const typeLabel = l.target_type === 'product' ? '🏢 Product' : l.target_type === 'project' ? '🚀 Project' : '⚙️ System';
           const details = l.changes ? JSON.stringify(l.changes) : '—';
           return `<tr>
-            <td style="font-weight:600;color:var(--navy);font-size:11px">${dt}</td>
-            <td style="font-weight:700">${l.user_email}</td>
-            <td><span class="badge ${actClass}">${l.action}</span></td>
-            <td><span style="font-weight:600">${typeLabel}</span></td>
-            <td style="font-weight:700;color:var(--navy)">${l.target_name || '—'}</td>
-            <td style="font-family:monospace;font-size:10px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title='${details.replace(/'/g, "&apos;")}'>${details}</td>
+            <td data-label="Time" style="font-weight:600;color:var(--navy);font-size:11px">${dt}</td>
+            <td data-label="User" style="font-weight:700">${l.user_email}</td>
+            <td data-label="Action"><span class="badge ${actClass}">${l.action}</span></td>
+            <td data-label="Target"><span style="font-weight:600">${typeLabel}</span></td>
+            <td data-label="Item" style="font-weight:700;color:var(--navy)">${l.target_name || '—'}</td>
+            <td data-label="Details" style="font-family:monospace;font-size:10px;word-break:break-all;white-space:normal" title='${details.replace(/'/g, "&apos;")}'>${details}</td>
           </tr>`;
         }).join('');
       } catch (err) {
@@ -4187,6 +4237,12 @@ CREATE POLICY "Allow approved audit logs" ON audit_logs FOR ALL TO authenticated
       document.getElementById('app-container').style.display = 'flex';
       startInactivityTimer();
       loadData();
+      setTimeout(async () => {
+        try {
+          const email = sessionStorage.getItem('pp_user_email') || 'system';
+          await logAuditAction('ACCESS', 'system', null, `User entered the platform: ${email}`);
+        } catch (e) { console.error('Access log failed:', e); }
+      }, 1200);
     } else {
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('app-container').style.display = 'none';
