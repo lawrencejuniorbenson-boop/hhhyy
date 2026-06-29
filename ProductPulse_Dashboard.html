@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title id="doc-title">ProductPulse Dashboard</title>
+  <title id="doc-title">Product/Project Dashboard</title>
   <meta name="description"
     content="Bank product and project performance intelligence dashboard — track KPIs, ROI, onboarding targets and compliance across all categories.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2195,7 +2195,7 @@
     <div class="sb-brand">
       <div class="sb-logo" id="hdr-icon">P</div>
       <div>
-        <div class="sb-name" id="hdr-title">ProductPulse</div>
+        <div class="sb-name" id="hdr-title">Product/Project</div>
         <div class="sb-sub" id="hdr-sub">Dashboard</div>
       </div>
     </div>
@@ -2326,7 +2326,7 @@
       <div id="page-home">
         <div class="home-hero">
           <div class="hero-text">
-            <h1 id="home-title">ProductPulse Dashboard</h1>
+            <h1 id="home-title">Product/Project Dashboard</h1>
             <p>Bank product &amp; project intelligence — track KPIs, ROI, onboarding and compliance</p>
           </div>
           <div class="hero-stats">
@@ -2880,7 +2880,7 @@
         <div class="adm-sec">
           <div class="adm-sec-t">🎨 Branding</div>
           <div class="si"><label>Dashboard Title</label><input id="s-name" type="text"
-              placeholder="ProductPulse Dashboard"></div>
+              placeholder="Product/Project Dashboard"></div>
           <div class="si"><label>Subtitle</label><input id="s-sub" type="text" placeholder="Live product intelligence">
           </div>
           <div class="si"><label>Logo Letter</label><input id="s-ll" type="text" maxlength="2" placeholder="P"
@@ -2955,7 +2955,7 @@
     let charts = {}, refreshTimer = null;
     let CURRENT_PAGE = 'home'; // 'home' or 'dash'
 
-    function defSettings() { return { title: 'ProductPulse Dashboard', sub: 'Dashboard', ll: 'P', colors: { navy: '#1B3A5C', gold: '#D4A843', blue: '#2563EB', green: '#059669', red: '#DC2626', amber: '#D97706' } }; }
+    function defSettings() { return { title: 'Product/Project Dashboard', sub: 'Dashboard', ll: 'P', colors: { navy: '#1B3A5C', gold: '#D4A843', blue: '#2563EB', green: '#059669', red: '#DC2626', amber: '#D97706' } }; }
     const CAT_LBL = { all: 'All', digital: '💻 Digital', payment: '💳 Payment', liability: '🏛 Liability', asset: '📈 Asset', other: '📦 Other' };
     const CAT_COL = { digital: '#2563EB', payment: '#7C3AED', liability: '#059669', asset: '#D97706', other: '#0891B2' };
     const STS_CSS = { Active: 'b-active', Pipeline: 'b-pipeline', 'In Review': 'b-review', Paused: 'b-paused', Completed: 'b-completed', Cancelled: 'b-cancelled' };
@@ -4097,7 +4097,7 @@
     }
 
     /* ── ADMIN ──────────────────────────────────────────────────────── */
-    const SQL_SETUP = `-- ProductPulse Dashboard — Full SQL Setup Script
+    const SQL_SETUP = `-- Product/Project Dashboard — Full SQL Setup Script
 CREATE TABLE IF NOT EXISTS products (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, product_code TEXT, category_id TEXT NOT NULL, name TEXT NOT NULL, offerings TEXT, start_date DATE, end_date DATE, progress INTEGER DEFAULT 0, status TEXT DEFAULT 'Pipeline', priority TEXT DEFAULT 'Medium', owner TEXT, notes TEXT, accounts_opened INTEGER DEFAULT 0, active_accounts INTEGER DEFAULT 0, inactive_accounts INTEGER DEFAULT 0, target_onboarding INTEGER DEFAULT 0, is_selling BOOLEAN DEFAULT true, compliance_status TEXT DEFAULT 'Compliant', performing TEXT DEFAULT 'Yes', revenue_monthly NUMERIC(15,2), actual_revenue_monthly NUMERIC(15,2), risk_level TEXT DEFAULT 'Low', reporting_month TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS product_gaps (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, product_id UUID REFERENCES products(id) ON DELETE CASCADE, gap_text TEXT, sort_order INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS product_markets (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, product_id UUID REFERENCES products(id) ON DELETE CASCADE, market_text TEXT, sort_order INTEGER DEFAULT 0);
@@ -4230,7 +4230,7 @@ CREATE POLICY "Allow approved audit logs" ON audit_logs FOR ALL TO authenticated
     function exportData() { const b = new Blob([JSON.stringify({ exported: new Date().toISOString(), products: PRODUCTS_DATA, projects: PROJECTS_DATA }, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'productpulse_backup_' + new Date().toISOString().split('T')[0] + '.json'; a.click(); toast('✅ Data exported!'); }
     async function importData(event) { const f = event.target.files[0]; if (!f) return; if (!ok()) { toast('❌ Configure Supabase first'); return; } const r = new FileReader(); r.onload = async e => { try { const d = JSON.parse(e.target.result); const products = d.products || (Array.isArray(d) ? d : []); const projects = d.projects || []; showLoad(true); let pc = 0, pjc = 0; for (const p of products) { await insertProduct({ cat: p.cat || p.category_id, name: p.name, code: p.product_code || '', offerings: p.offerings || '', gaps: p.gaps || [], markets: p.markets || [], enhancements: p.enhancements || [], start: p.start_date || null, end: p.end_date || null, progress: 0, status: p.status || 'Active', owner: p.owner || '', notes: p.notes || '', accounts_opened: p.accounts_opened || 0, active_accounts: p.active_accounts || 0, inactive_accounts: p.inactive_accounts || 0, target_onboarding: p.target_onboarding || 0, is_selling: true, compliance_status: p.compliance_status || 'Compliant', performing: 'Yes', revenue_monthly: p.revenue_monthly || null, actual_revenue_monthly: p.actual_revenue_monthly || null, risk_level: p.risk_level || 'Low' }); pc++; } for (const p of projects) { await insertProjectInDB({ cat: p.cat || p.category_id, name: p.name, code: p.project_code || '', description: p.description || '', start: p.start_date || null, end: p.end_date || null, progress: p.progress || 0, status: p.status || 'Pipeline', priority: p.priority || 'Medium', owner: p.owner || '', notes: p.notes || '', budget_cost: p.budget_cost || 0, expected_benefit: p.expected_benefit || 0, risk_level: p.risk_level || 'Low', stage: p.stage || 'Initiation', tasks: p.tasks || [] }); pjc++; } await loadData(); toast(`✅ Imported ${pc} products & ${pjc} projects!`); await logAuditAction('IMPORT', 'system', null, 'Bulk Backup JSON Import', { products: pc, projects: pjc }); } catch (err) { toast('❌ Import failed: ' + err.message); showLoad(false); } }; r.readAsText(f); event.target.value = ''; }
     async function clearAll() { if (!confirm('Delete ALL products and projects?')) return; if (!ok()) { toast('❌ Configure Supabase first'); return; } showLoad(true); try { for (const p of PRODUCTS_DATA) { await Promise.all([sbDel('product_gaps', '?product_id=eq.' + p.id), sbDel('product_markets', '?product_id=eq.' + p.id), sbDel('product_enhancements', '?product_id=eq.' + p.id)]); await sbDel('products', '?id=eq.' + p.id); } for (const p of PROJECTS_DATA) { await sbDel('project_tasks', '?project_id=eq.' + p.id); await sbDel('projects', '?id=eq.' + p.id); } await loadData(); toast('🗑️ Database cleared.'); await logAuditAction('CLEAR_DB', 'system', null, 'Purged entire database'); } catch (err) { toast('❌ Error: ' + err.message); showLoad(false); } }
-    function saveFile() { const b = new Blob([document.documentElement.outerHTML], { type: 'text/html' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'ProductPulse_Dashboard_' + new Date().toISOString().split('T')[0] + '.html'; a.click(); toast('💾 Dashboard downloaded!'); }
+    function saveFile() { const b = new Blob([document.documentElement.outerHTML], { type: 'text/html' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'ProductProject_Dashboard_' + new Date().toISOString().split('T')[0] + '.html'; a.click(); toast('💾 Dashboard downloaded!'); }
 
     /* ── BOOT ───────────────────────────────────────────────────────── */
     applyDOM();
