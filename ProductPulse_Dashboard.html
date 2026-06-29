@@ -2045,6 +2045,34 @@
   border-color: var(--gold);
   background: rgba(255, 255, 255, 0.08);
 }
+.login-field-pass-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.login-field-pass-wrapper input {
+  width: 100%;
+  padding-right: 40px !important;
+}
+.btn-toggle-pass {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
+  user-select: none;
+}
+.btn-toggle-pass:hover {
+  color: var(--gold);
+  transform: scale(1.1);
+}
 .btn-login {
   background: linear-gradient(135deg, var(--gold), var(--goldl));
   color: #0F2035;
@@ -2085,7 +2113,10 @@
         </div>
         <div class="login-field">
           <label>Password</label>
-          <input type="password" id="auth-password" required placeholder="••••••••" minlength="6">
+          <div class="login-field-pass-wrapper">
+            <input type="password" id="auth-password" required placeholder="••••••••" minlength="6">
+            <button type="button" class="btn-toggle-pass" id="btn-toggle-pass" onclick="togglePasswordVisibility()" title="Show/Hide Password">👁️</button>
+          </div>
         </div>
         <button type="submit" class="btn-login" id="btn-auth-submit">Sign In</button>
       </form>
@@ -3514,6 +3545,19 @@
 
     /* ── AUTH HELPERS ────────────────────────────────────────────────── */
     let authMode = 'login';
+    function togglePasswordVisibility() {
+      const input = document.getElementById('auth-password');
+      const btn = document.getElementById('btn-toggle-pass');
+      if (!input || !btn) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+      }
+    }
+
     function toggleAuthMode(mode) {
       authMode = mode;
       document.getElementById('tab-login').classList.toggle('active', mode === 'login');
