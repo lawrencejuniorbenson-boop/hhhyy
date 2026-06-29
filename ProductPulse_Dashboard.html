@@ -2933,6 +2933,11 @@
     /* ── NAVIGATION ─────────────────────────────────────────────────── */
     function navigateTo(mode, cat) {
       if (mode === 'audit') {
+        if (!IS_ADMIN) {
+          toast('❌ Only administrators can access the Audit Trail.');
+          navigateTo('home');
+          return;
+        }
         CURRENT_PAGE = 'audit';
         document.getElementById('page-home').style.display = 'none';
         document.getElementById('page-dash').style.display = 'none';
@@ -3088,6 +3093,11 @@
       document.title = SETTINGS.title;
       const r = document.documentElement.style;
       Object.entries(SETTINGS.colors).forEach(([k, v]) => r.setProperty('--' + k, v));
+      
+      const navAudit = document.getElementById('nav-audit');
+      if (navAudit) {
+        navAudit.style.display = IS_ADMIN ? '' : 'none';
+      }
     }
 
     /* ── RENDER ─────────────────────────────────────────────────────── */
