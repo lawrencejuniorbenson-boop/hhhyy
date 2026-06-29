@@ -967,8 +967,15 @@ body.mode-portfolio .mode-product-only,.mode-portfolio .mode-project-only{displa
 <div class="loading hidden" id="loading"><div class="spin"></div></div>
 
 <script>
-const NEW_SB_URL = 'https://fmhofkdyzzohofdmsfvh.supabase.co';
-const NEW_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtaG9ma2R5enpvaG9mZG1zZnZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMDcyNzYsImV4cCI6MjA5Nzc4MzI3Nn0.wGN53U_ILIkvR1wQ6U0iGpG3sxjm5SVtLj1I-9imKMU';
+const NEW_SB_URL = 'https://drpfoxzcvrfnuvviqjvv.supabase.co';
+const NEW_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRycGZveHpjdnJmbnV2dmlxanZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MzM1MTcsImV4cCI6MjA5ODMwOTUxN30.rkBMVOcJKSzAueIoFKo6bVHlQOSO7HuJw0vwHnCqtPk';
+
+let storedUrl = localStorage.getItem('pp_sb_url');
+if (storedUrl && (storedUrl.includes('fmhofkdyzzohofdmsfvh') || storedUrl.includes('your-project'))) {
+  localStorage.removeItem('pp_sb_url');
+  localStorage.removeItem('pp_sb_key');
+}
+
 let SB_URL = localStorage.getItem('pp_sb_url') || NEW_SB_URL;
 let SB_KEY = localStorage.getItem('pp_sb_key') || NEW_SB_KEY;
 function ok(){ return SB_URL && SB_URL !== 'https://your-project.supabase.co' && SB_KEY && SB_KEY !== 'your-anon-key'; }
