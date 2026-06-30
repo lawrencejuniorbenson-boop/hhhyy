@@ -3199,7 +3199,7 @@
 
     /* ── TREND DATA ─────────────────────────────────────────────────── */
     function getTrendData() {
-      const data = getActiveData(), now = new Date(), yr = now.getFullYear();
+      const data = getActiveData(), now = new Date(), currentYr = now.getFullYear();
       let points = [];
       const mNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
       const monthMap = {};
@@ -3214,35 +3214,79 @@
         return { mIdx: monthMap[rm] ?? null, year: null };
       }
 
+      // Find the range of active years dynamically to support year-on-year trend lines
+      let minYear = currentYr, maxYear = currentYr;
+      data.forEach(p => {
+        const { year } = parseRepMonth(p.reporting_month);
+        if (year) {
+          if (year < minYear) minYear = year;
+          if (year > maxYear) maxYear = year;
+        } else if (p.start_date) {
+          const y = new Date(p.start_date).getFullYear();
+          if (y < minYear) minYear = y;
+          if (y > maxYear) maxYear = y;
+        }
+      });
+
       if (CURRENT_PERIOD === 'monthly') {
-        for (let m = 0; m < 12; m++) points.push({ label: new Date(yr, m, 1).toLocaleString('en', { month: 'short' }), revenue: 0, onboarding: 0 });
+        for (let y = minYear; y <= maxYear; y++) {
+          for (let m = 0; m < 12; m++) {
+            points.push({
+              label: new Date(y, m, 1).toLocaleString('en', { month: 'short' }) + ' ' + y,
+              revenue: 0,
+              onboarding: 0
+            });
+          }
+        }
         data.forEach(p => {
           const { mIdx: parsedIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
           let mIdx = parsedIdx;
-          if (mIdx == null && p.start_date) mIdx = new Date(p.start_date).getMonth();
+          let year = parsedYear;
+          if (mIdx == null && p.start_date) {
+            const d = new Date(p.start_date);
+            mIdx = d.getMonth();
+            year = d.getFullYear();
+          }
           if (mIdx == null) return;
-          // For year-on-year: only include if year matches current view year (or no year specified)
-          if (parsedYear != null && parsedYear !== yr) return;
+          if (year == null) year = currentYr;
 
           const isProj = CURRENT_MODE === 'projects';
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
 
+          const pIdx = (year - minYear) * 12 + mIdx;
+          if (pIdx < 0 || pIdx >= points.length) return;
+
           if (p.reporting_month) {
-            points[mIdx].revenue += rev;
-            points[mIdx].onboarding += onb;
+            points[pIdx].revenue += rev;
+            points[pIdx].onboarding += onb;
           } else {
             for (let m = mIdx; m < 12; m++) {
-              points[m].revenue += rev;
-              points[m].onboarding += onb;
+              const futIdx = (year - minYear) * 12 + m;
+              if (futIdx >= 0 && futIdx < points.length) {
+                points[futIdx].revenue += rev;
+                points[futIdx].onboarding += onb;
+              }
             }
           }
         });
       } else if (CURRENT_PERIOD === 'weekly') {
-        for (let w = 1; w <= 52; w++) points.push({ label: 'W' + w, revenue: 0, onboarding: 0 });
+        for (let y = minYear; y <= maxYear; y++) {
+          const yrShort = "'" + String(y).slice(-2);
+          for (let w = 1; w <= 52; w++) {
+            points.push({
+              label: 'W' + w + ' ' + yrShort,
+              revenue: 0,
+              onboarding: 0
+            });
+          }
+        }
         data.forEach(p => {
           const { mIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
-          if (parsedYear != null && parsedYear !== yr) return;
+          let year = parsedYear;
+          if (year == null && p.start_date) year = new Date(p.start_date).getFullYear();
+          if (year == null) year = currentYr;
+
           const isProj = CURRENT_MODE === 'projects';
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
@@ -3250,64 +3294,103 @@
           if (mIdx != null) {
             const startWeek = mIdx * 4;
             for (let w = 0; w < 4; w++) {
-              if (startWeek + w < 52) {
-                points[startWeek + w].revenue += rev / 4;
-                points[startWeek + w].onboarding += onb / 4;
+              const wIdx = (year - minYear) * 52 + startWeek + w;
+              if (wIdx >= 0 && wIdx < points.length) {
+                points[wIdx].revenue += rev / 4;
+                points[wIdx].onboarding += onb / 4;
               }
             }
           } else {
             if (!p.start_date) return;
-            const sd = new Date(p.start_date), jan1 = new Date(yr, 0, 1);
+            const sd = new Date(p.start_date), jan1 = new Date(year, 0, 1);
             const sw = Math.max(1, Math.min(52, Math.ceil(((sd - jan1) / 86400000 + jan1.getDay() + 1) / 7)));
             for (let w = sw - 1; w < 52; w++) {
-              points[w].revenue += isProj ? rev / 52 : rev / 4.33;
-              points[w].onboarding += onb / 52;
+              const wIdx = (year - minYear) * 52 + w;
+              if (wIdx >= 0 && wIdx < points.length) {
+                points[wIdx].revenue += isProj ? rev / 52 : rev / 4.33;
+                points[wIdx].onboarding += onb / 52;
+              }
             }
           }
         });
       } else if (CURRENT_PERIOD === 'quarterly') {
-        for (let q = 1; q <= 4; q++) points.push({ label: 'Q' + q, revenue: 0, onboarding: 0 });
+        for (let y = minYear; y <= maxYear; y++) {
+          for (let q = 1; q <= 4; q++) {
+            points.push({
+              label: 'Q' + q + ' ' + y,
+              revenue: 0,
+              onboarding: 0
+            });
+          }
+        }
         data.forEach(p => {
           const { mIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
-          if (parsedYear != null && parsedYear !== yr) return;
+          let year = parsedYear;
+          if (year == null && p.start_date) year = new Date(p.start_date).getFullYear();
+          if (year == null) year = currentYr;
+
           const isProj = CURRENT_MODE === 'projects';
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
 
           if (mIdx != null) {
             const qIdx = Math.floor(mIdx / 3);
-            points[qIdx].revenue += rev;
-            points[qIdx].onboarding += onb;
+            const pIdx = (year - minYear) * 4 + qIdx;
+            if (pIdx >= 0 && pIdx < points.length) {
+              points[pIdx].revenue += rev;
+              points[pIdx].onboarding += onb;
+            }
           } else {
             if (!p.start_date) return;
             const sq = Math.floor(new Date(p.start_date).getMonth() / 3);
             for (let q = sq; q < 4; q++) {
-              points[q].revenue += isProj ? rev * 3 : rev * 3;
-              points[q].onboarding += onb;
+              const pIdx = (year - minYear) * 4 + q;
+              if (pIdx >= 0 && pIdx < points.length) {
+                points[pIdx].revenue += isProj ? rev * 3 : rev * 3;
+                points[pIdx].onboarding += onb;
+              }
             }
           }
         });
       } else {
         const bkts = 12, dpb = Math.floor(365 / bkts);
-        for (let b = 0; b < bkts; b++) points.push({ label: 'D' + (b * dpb + 1), revenue: 0, onboarding: 0 });
+        for (let y = minYear; y <= maxYear; y++) {
+          const yrShort = "'" + String(y).slice(-2);
+          for (let b = 0; b < bkts; b++) {
+            points.push({
+              label: 'D' + (b * dpb + 1) + ' ' + yrShort,
+              revenue: 0,
+              onboarding: 0
+            });
+          }
+        }
         data.forEach(p => {
           const { mIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
-          if (parsedYear != null && parsedYear !== yr) return;
+          let year = parsedYear;
+          if (year == null && p.start_date) year = new Date(p.start_date).getFullYear();
+          if (year == null) year = currentYr;
+
           const isProj = CURRENT_MODE === 'projects';
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
 
           if (mIdx != null) {
             const b = mIdx;
-            points[b].revenue += rev;
-            points[b].onboarding += onb;
+            const pIdx = (year - minYear) * bkts + b;
+            if (pIdx >= 0 && pIdx < points.length) {
+              points[pIdx].revenue += rev;
+              points[pIdx].onboarding += onb;
+            }
           } else {
             if (!p.start_date) return;
-            const sd = new Date(p.start_date), jan1 = new Date(yr, 0, 1);
+            const sd = new Date(p.start_date), jan1 = new Date(year, 0, 1);
             const sb = Math.min(bkts - 1, Math.floor(Math.max(0, (sd - jan1) / 86400000) / dpb));
             for (let b = sb; b < bkts; b++) {
-              points[b].revenue += isProj ? rev * 12 : rev * 12;
-              points[b].onboarding += onb;
+              const pIdx = (year - minYear) * bkts + b;
+              if (pIdx >= 0 && pIdx < points.length) {
+                points[pIdx].revenue += isProj ? rev * 12 : rev * 12;
+                points[pIdx].onboarding += onb;
+              }
             }
           }
         });
@@ -3321,7 +3404,8 @@
       Chart.defaults.font.family = "'Inter',system-ui,sans-serif";
       const t1 = document.getElementById('c1-title'), t2 = document.getElementById('c2-title'), t4 = document.getElementById('c4-title');
       const t3Rev = document.getElementById('c3-title-rev'), t3Onb = document.getElementById('c3-title-onb');
-      const periodLabel = { monthly: 'Jan – Dec', weekly: 'W1 – W52', quarterly: 'Q1 – Q4', yearly: 'D1 – D365' }[CURRENT_PERIOD];
+      const td = getTrendData();
+      const periodLabel = td.length ? (td[0].label + ' – ' + td[td.length - 1].label) : '';
       if (CURRENT_MODE === 'products') {
         if (t1) t1.textContent = 'Products by Category'; if (t2) t2.textContent = 'Compliance Breakdown'; if (t4) t4.textContent = 'Top 6 by Accounts';
         dc('cat');
@@ -3358,7 +3442,6 @@
       }
       dc('trendRev');
       dc('trendOnb');
-      const td = getTrendData();
       const revLabel = CURRENT_MODE === 'projects' ? 'Expected Benefits' : 'Revenue';
       const accLabel = CURRENT_MODE === 'projects' ? 'Budget Cost' : 'Accounts Opened';
 
