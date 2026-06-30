@@ -2147,7 +2147,7 @@
   <div id="inactivity-overlay" class="overlay" style="z-index: 100005; display: none; align-items: center; justify-content: center; background: rgba(3, 15, 67, 0.6); backdrop-filter: blur(8px);">
     <div class="modal" style="max-width: 380px; padding: 24px; text-align: center; background: var(--card); border: 1px solid var(--bdr)">
       <div style="font-size: 36px; margin-bottom: 12px">⏳</div>
-      <h3 style="font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 8px">Session Security Timeout</h3>
+      <h3 style="font-size: 15px; font-weight: 800; color: var(--navy); margin-bottom: 8px">Session Security Timeout</h3>
       <p style="font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 20px">
         You have been inactive. For your security, you will be logged out in <span id="inactivity-countdown" style="color: var(--gold); font-weight: bold; font-size: 13px">20</span> seconds.
       </p>
@@ -3714,7 +3714,6 @@
     let authMode = 'login';
     // INACTIVITY AUTO LOGOUT LOGIC
     let inactivityTimer = null;
-    let warningTimer = null;
     let countdownTimer = null;
     let countdownSeconds = 20;
     let isWarningActive = false;
@@ -3723,13 +3722,11 @@
       clearInactivityTimers();
       if (!AUTH_TOKEN) return;
       
-      // Warning triggers at 3m 40s (220000ms), auto logout at 4m (240000ms)
-      warningTimer = setTimeout(showInactivityWarning, 220000);
-      inactivityTimer = setTimeout(performAutoLogout, 240000);
+      // Trigger warning after 3 minutes 40 seconds (220,000 ms) of inactivity
+      inactivityTimer = setTimeout(showInactivityWarning, 220000);
     }
 
     function clearInactivityTimers() {
-      if (warningTimer) clearTimeout(warningTimer);
       if (inactivityTimer) clearTimeout(inactivityTimer);
       if (countdownTimer) clearInterval(countdownTimer);
       isWarningActive = false;
@@ -3746,6 +3743,7 @@
         document.getElementById('inactivity-countdown').textContent = countdownSeconds;
         if (countdownSeconds <= 0) {
           clearInterval(countdownTimer);
+          performAutoLogout();
         }
       }, 1000);
     }
