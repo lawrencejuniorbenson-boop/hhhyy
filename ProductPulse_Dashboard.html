@@ -2612,21 +2612,7 @@
           </div>
           <div class="f">
             <label>Reporting Month *</label>
-            <select id="f-rep-month">
-              <option value="">— Select Month —</option>
-              <option value="January">January</option>
-              <option value="February">February</option>
-              <option value="March">March</option>
-              <option value="April">April</option>
-              <option value="May">May</option>
-              <option value="June">June</option>
-              <option value="July">July</option>
-              <option value="August">August</option>
-              <option value="September">September</option>
-              <option value="October">October</option>
-              <option value="November">November</option>
-              <option value="December">December</option>
-            </select>
+            <input id="f-rep-month" type="month" placeholder="YYYY-MM" title="Select month and year for reporting">
           </div>
           <div class="f s2"><label id="lbl-f-name">Product Name *</label><input id="f-name" type="text"
               placeholder="e.g. Mobile Wallet, Visa Debit Card…"></div>
@@ -3219,13 +3205,25 @@
       const mNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
       const monthMap = {};
       mNames.forEach((n, i) => monthMap[n] = i);
+      // Helper: parse reporting_month in either legacy "MonthName" or new "YYYY-MM" format
+      function parseRepMonth(rm) {
+        if (!rm) return { mIdx: null, year: null };
+        if (/^\d{4}-\d{2}$/.test(rm)) {
+          const [y, m] = rm.split('-').map(Number);
+          return { mIdx: m - 1, year: y };
+        }
+        return { mIdx: monthMap[rm] ?? null, year: null };
+      }
 
       if (CURRENT_PERIOD === 'monthly') {
         for (let m = 0; m < 12; m++) points.push({ label: new Date(yr, m, 1).toLocaleString('en', { month: 'short' }), revenue: 0, onboarding: 0 });
         data.forEach(p => {
-          let mIdx = p.reporting_month ? monthMap[p.reporting_month] : null;
+          const { mIdx: parsedIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
+          let mIdx = parsedIdx;
           if (mIdx == null && p.start_date) mIdx = new Date(p.start_date).getMonth();
           if (mIdx == null) return;
+          // For year-on-year: only include if year matches current view year (or no year specified)
+          if (parsedYear != null && parsedYear !== yr) return;
 
           const isProj = CURRENT_MODE === 'projects';
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
@@ -3244,12 +3242,13 @@
       } else if (CURRENT_PERIOD === 'weekly') {
         for (let w = 1; w <= 52; w++) points.push({ label: 'W' + w, revenue: 0, onboarding: 0 });
         data.forEach(p => {
-          let mIdx = p.reporting_month ? monthMap[p.reporting_month] : null;
+          const { mIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
+          if (parsedYear != null && parsedYear !== yr) return;
           const isProj = CURRENT_MODE === 'projects';
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
 
-          if (p.reporting_month) {
+          if (mIdx != null) {
             const startWeek = mIdx * 4;
             for (let w = 0; w < 4; w++) {
               if (startWeek + w < 52) {
@@ -3270,12 +3269,13 @@
       } else if (CURRENT_PERIOD === 'quarterly') {
         for (let q = 1; q <= 4; q++) points.push({ label: 'Q' + q, revenue: 0, onboarding: 0 });
         data.forEach(p => {
-          let mIdx = p.reporting_month ? monthMap[p.reporting_month] : null;
+          const { mIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
+          if (parsedYear != null && parsedYear !== yr) return;
           const isProj = CURRENT_MODE === 'projects';
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
 
-          if (p.reporting_month) {
+          if (mIdx != null) {
             const qIdx = Math.floor(mIdx / 3);
             points[qIdx].revenue += rev;
             points[qIdx].onboarding += onb;
@@ -3292,12 +3292,13 @@
         const bkts = 12, dpb = Math.floor(365 / bkts);
         for (let b = 0; b < bkts; b++) points.push({ label: 'D' + (b * dpb + 1), revenue: 0, onboarding: 0 });
         data.forEach(p => {
-          let mIdx = p.reporting_month ? monthMap[p.reporting_month] : null;
+          const { mIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
+          if (parsedYear != null && parsedYear !== yr) return;
           const isProj = CURRENT_MODE === 'projects';
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
 
-          if (p.reporting_month) {
+          if (mIdx != null) {
             const b = mIdx;
             points[b].revenue += rev;
             points[b].onboarding += onb;
@@ -4011,7 +4012,7 @@
       <div class="detail-grid">
         <div class="df"><label>Category</label><div class="val" style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:${cc};border-radius:2px;display:inline-block;flex-shrink:0"></span>${(CAT_LBL[p.cat] || p.cat).replace(/^\\S+\\s/, '')}</div></div>
         <div class="df"><label>Product Code</label><div class="val">${p.product_code || '—'}</div></div>
-        <div class="df"><label>Reporting Month</label><div class="val" style="font-weight:700;color:var(--navy)">${p.reporting_month || '—'}</div></div>
+        <div class="df"><label>Reporting Month</label><div class="val" style="font-weight:700;color:var(--navy)">${p.reporting_month ? (p.reporting_month.match(/^\d{4}-\d{2}$/) ? new Date(p.reporting_month + '-01').toLocaleString('en', {month:'long',year:'numeric'}) : p.reporting_month) : '—'}</div></div>
         <div class="df"><label>Owner / Team</label><div class="val">${p.owner || '—'}</div></div>
         <div class="df"><label>Risk Level</label><div class="val"><span class="badge ${RSK_CSS[p.risk_level] || 'b-low-risk'}">${p.risk_level || 'Low'}</span></div></div>
         <div class="sec-sep"></div>
