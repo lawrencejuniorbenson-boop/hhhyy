@@ -3257,7 +3257,7 @@
           const pIdx = (year - minYear) * 12 + mIdx;
           if (pIdx < 0 || pIdx >= points.length) return;
 
-          if (p.reporting_month) {
+          if (p.reporting_month || isProj) {
             points[pIdx].revenue += rev;
             points[pIdx].onboarding += onb;
           } else {
@@ -3291,7 +3291,14 @@
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
 
-          if (mIdx != null) {
+          if (isProj) {
+            const wTarget = mIdx != null ? mIdx * 4 : (p.start_date ? Math.max(0, Math.min(51, Math.ceil(((new Date(p.start_date) - new Date(year, 0, 1)) / 86400000 + new Date(year, 0, 1).getDay() + 1) / 7) - 1)) : 0);
+            const wIdx = (year - minYear) * 52 + wTarget;
+            if (wIdx >= 0 && wIdx < points.length) {
+              points[wIdx].revenue += rev;
+              points[wIdx].onboarding += onb;
+            }
+          } else if (mIdx != null) {
             const startWeek = mIdx * 4;
             for (let w = 0; w < 4; w++) {
               const wIdx = (year - minYear) * 52 + startWeek + w;
@@ -3307,7 +3314,7 @@
             for (let w = sw - 1; w < 52; w++) {
               const wIdx = (year - minYear) * 52 + w;
               if (wIdx >= 0 && wIdx < points.length) {
-                points[wIdx].revenue += isProj ? rev / 52 : rev / 4.33;
+                points[wIdx].revenue += rev / 4.33;
                 points[wIdx].onboarding += onb / 52;
               }
             }
@@ -3333,8 +3340,8 @@
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
 
-          if (mIdx != null) {
-            const qIdx = Math.floor(mIdx / 3);
+          const qIdx = mIdx != null ? Math.floor(mIdx / 3) : (p.start_date ? Math.floor(new Date(p.start_date).getMonth() / 3) : 0);
+          if (p.reporting_month || isProj) {
             const pIdx = (year - minYear) * 4 + qIdx;
             if (pIdx >= 0 && pIdx < points.length) {
               points[pIdx].revenue += rev;
@@ -3342,11 +3349,10 @@
             }
           } else {
             if (!p.start_date) return;
-            const sq = Math.floor(new Date(p.start_date).getMonth() / 3);
-            for (let q = sq; q < 4; q++) {
+            for (let q = qIdx; q < 4; q++) {
               const pIdx = (year - minYear) * 4 + q;
               if (pIdx >= 0 && pIdx < points.length) {
-                points[pIdx].revenue += isProj ? rev * 3 : rev * 3;
+                points[pIdx].revenue += rev * 3;
                 points[pIdx].onboarding += onb;
               }
             }
@@ -3374,21 +3380,19 @@
           const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
           const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
 
-          if (mIdx != null) {
-            const b = mIdx;
-            const pIdx = (year - minYear) * bkts + b;
+          const bIdx = mIdx != null ? mIdx : (p.start_date ? Math.min(bkts - 1, Math.floor(Math.max(0, (new Date(p.start_date) - new Date(year, 0, 1)) / 86400000) / dpb)) : 0);
+          if (p.reporting_month || isProj) {
+            const pIdx = (year - minYear) * bkts + bIdx;
             if (pIdx >= 0 && pIdx < points.length) {
               points[pIdx].revenue += rev;
               points[pIdx].onboarding += onb;
             }
           } else {
             if (!p.start_date) return;
-            const sd = new Date(p.start_date), jan1 = new Date(year, 0, 1);
-            const sb = Math.min(bkts - 1, Math.floor(Math.max(0, (sd - jan1) / 86400000) / dpb));
-            for (let b = sb; b < bkts; b++) {
+            for (let b = bIdx; b < bkts; b++) {
               const pIdx = (year - minYear) * bkts + b;
               if (pIdx >= 0 && pIdx < points.length) {
-                points[pIdx].revenue += isProj ? rev * 12 : rev * 12;
+                points[pIdx].revenue += rev * 12;
                 points[pIdx].onboarding += onb;
               }
             }
@@ -3397,6 +3401,7 @@
       }
       return points;
     }
+
 
     /* ── CHARTS ─────────────────────────────────────────────────────── */
     function renderCharts() {
