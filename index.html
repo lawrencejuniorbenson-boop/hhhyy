@@ -3216,7 +3216,7 @@
       }
 
       if (CURRENT_PERIOD === 'monthly') {
-        for (let m = 0; m < 12; m++) points.push({ label: new Date(yr, m, 1).toLocaleString('en', { month: 'short' }), revenue: 0, onboarding: 0 });
+        for (let m = 0; m < 12; m++) points.push({ label: new Date(yr, m, 1).toLocaleString('en', { month: 'short' }) + ' ' + yr, revenue: 0, onboarding: 0 });
         data.forEach(p => {
           const { mIdx: parsedIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
           let mIdx = parsedIdx;
@@ -3240,7 +3240,7 @@
           }
         });
       } else if (CURRENT_PERIOD === 'weekly') {
-        for (let w = 1; w <= 52; w++) points.push({ label: 'W' + w, revenue: 0, onboarding: 0 });
+        for (let w = 1; w <= 52; w++) points.push({ label: 'W' + w + " '" + String(yr).slice(-2), revenue: 0, onboarding: 0 });
         data.forEach(p => {
           const { mIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
           if (parsedYear != null && parsedYear !== yr) return;
@@ -3267,7 +3267,7 @@
           }
         });
       } else if (CURRENT_PERIOD === 'quarterly') {
-        for (let q = 1; q <= 4; q++) points.push({ label: 'Q' + q, revenue: 0, onboarding: 0 });
+        for (let q = 1; q <= 4; q++) points.push({ label: 'Q' + q + ' ' + yr, revenue: 0, onboarding: 0 });
         data.forEach(p => {
           const { mIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
           if (parsedYear != null && parsedYear !== yr) return;
@@ -3290,7 +3290,7 @@
         });
       } else {
         const bkts = 12, dpb = Math.floor(365 / bkts);
-        for (let b = 0; b < bkts; b++) points.push({ label: 'D' + (b * dpb + 1), revenue: 0, onboarding: 0 });
+        for (let b = 0; b < bkts; b++) points.push({ label: 'D' + (b * dpb + 1) + " '" + String(yr).slice(-2), revenue: 0, onboarding: 0 });
         data.forEach(p => {
           const { mIdx, year: parsedYear } = parseRepMonth(p.reporting_month);
           if (parsedYear != null && parsedYear !== yr) return;
