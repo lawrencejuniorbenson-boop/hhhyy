@@ -3500,7 +3500,7 @@
         <td><div style="font-weight:800;color:var(--navy);font-size:12.5px">${p.name}</div>${p.project_code ? `<div style="font-size:10px;color:var(--muted)">${p.project_code}</div>` : ''}${p.owner ? `<div style="font-size:10px;color:var(--muted)">${p.owner}</div>` : ''}</td>
         <td><span style="display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:11px"><span style="width:8px;height:8px;background:${cc};border-radius:2px;flex-shrink:0"></span>${cn}</span></td>
         <td><div style="font-size:11.5px;font-weight:600;color:var(--navy)">${p.start_date || '—'}</div><div style="font-size:10px;color:var(--muted)">to ${p.end_date || 'Ongoing'}</div></td>
-        <td style="font-weight:700;color:var(--navy)">${C(p.budget_cost * scale)}</td>
+        <td style="font-weight:700;color:var(--navy)">${C(p.budget_cost)}</td>
         <td><span class="badge ${stageCss}">${p.stage}</span></td>
         <td><span class="badge ${RSK_CSS[p.risk_level] || 'b-low-risk'}">${p.risk_level || 'Low'}</span></td>
         <td><span class="badge ${STS_CSS[p.status] || 'b-pipeline'}">${p.status}</span></td>
@@ -3522,7 +3522,7 @@
         <td><span style="display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:11px"><span style="width:8px;height:8px;background:${cc};border-radius:2px;flex-shrink:0"></span>${cn}</span></td>
         <td><div style="font-size:11px;color:var(--navy)">${p.owner || '—'}</div></td>
         <td><div style="font-size:11px;font-weight:600;color:var(--navy)">${p.start_date || '—'}</div><div style="font-size:10px;color:var(--muted)">to ${p.end_date || 'Ongoing'}</div></td>
-        <td><div style="font-size:11.5px;font-weight:700;color:var(--navy)">${C(cost * scale)}</div><div style="font-size:9.5px;color:var(--muted)">${isProd ? 'Target Rev' : 'Budget'}</div></td>
+        <td><div style="font-size:11.5px;font-weight:700;color:var(--navy)">${C(isProd ? cost * scale : cost)}</div><div style="font-size:9.5px;color:var(--muted)">${isProd ? 'Target Rev' : 'Budget'}</div></td>
         <td><div style="font-size:11.5px;font-weight:700;color:var(--green)">${isProd ? C(benefit * scale) : '—'}</div><div style="font-size:9.5px;color:var(--muted)">${isProd ? 'Actual Rev' : '—'}</div></td>
         <td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pcl}" style="width:${pc}%"></div></div><span class="prog-pct">${pc}%</span></div></td>
         <td><span class="badge ${STS_CSS[p.status] || 'b-pipeline'}">${p.status}</span></td>
@@ -4138,7 +4138,7 @@
         <div class="df"><label>Sponsor / Owner</label><div class="val">${p.owner || '—'}</div></div>
         <div class="df"><label>Timeline</label><div class="val">${p.start_date || '—'} → ${p.end_date || 'Ongoing'}</div></div>
         <div class="sec-sep"></div>
-        <div class="df"><label>Budget / Cost</label><div class="val" style="font-size:18px;font-weight:800;color:var(--navy)">${C(p.budget_cost * scale)}</div></div>
+        <div class="df"><label>Budget / Cost</label><div class="val" style="font-size:18px;font-weight:800;color:var(--navy)">${C(p.budget_cost)}</div></div>
         ${p.description ? `<div class="sec-sep"></div><div class="df full"><label>Description &amp; Objectives</label><div class="txt-box">${p.description}</div></div>` : ''}
         <div class="sec-sep"></div>
         <div class="df full"><label>Implementation Plan</label>
