@@ -3322,7 +3322,8 @@
       Chart.defaults.font.family = "'Inter',system-ui,sans-serif";
       const t1 = document.getElementById('c1-title'), t2 = document.getElementById('c2-title'), t4 = document.getElementById('c4-title');
       const t3Rev = document.getElementById('c3-title-rev'), t3Onb = document.getElementById('c3-title-onb');
-      const periodLabel = { monthly: 'Jan – Dec', weekly: 'W1 – W52', quarterly: 'Q1 – Q4', yearly: 'D1 – D365' }[CURRENT_PERIOD];
+      const _yr = new Date().getFullYear(), _yrS = "'" + String(_yr).slice(-2);
+      const periodLabel = { monthly: 'Jan – Dec ' + _yr, weekly: 'W1 – W52 ' + _yrS, quarterly: 'Q1 – Q4 ' + _yr, yearly: 'D1 – D365 ' + _yrS }[CURRENT_PERIOD];
       if (CURRENT_MODE === 'products') {
         if (t1) t1.textContent = 'Products by Category'; if (t2) t2.textContent = 'Compliance Breakdown'; if (t4) t4.textContent = 'Top 6 by Accounts';
         dc('cat');
