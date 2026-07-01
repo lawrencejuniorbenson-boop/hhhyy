@@ -2860,6 +2860,10 @@
 
         <div class="adm-sec" id="approval-sec" style="display:none">
           <div class="adm-sec-t">👤 User Approvals</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input id="new-approval-email" type="email" placeholder="Enter email to pre-approve..." style="flex:1;padding:8px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;font-size:12px;background:rgba(255,255,255,0.05);color:#fff;outline:none">
+            <button class="a-btn a-view" onclick="preApproveEmail()" style="background:var(--gold);border-color:var(--gold);color:#0F2035;font-weight:800;padding:0 14px;border-radius:8px;font-size:11px">Pre-Approve</button>
+          </div>
           <div id="approvals-list" style="display:flex;flex-direction:column;gap:8px"></div>
         </div>
         <div class="adm-sec">
@@ -3853,9 +3857,16 @@
       }
     }
 
-    async function registerUser(email, password) {
+     async function registerUser(email, password) {
       showLoad(true);
       try {
+        const emailLower = email.trim().toLowerCase();
+        // Gating check: admin must pre-approve the email first
+        const existing = await sbGet('user_approvals', '?email=eq.' + emailLower);
+        if (existing.length === 0 || !existing[0].approved) {
+          throw new Error('This email address has not been pre-approved by the administrator. Please contact your admin.');
+        }
+
         const res = await fetch(`${SB_URL}/auth/v1/signup`, {
           method: 'POST',
           headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
@@ -4013,6 +4024,38 @@
         await renderApprovals();
       } catch (err) {
         toast('❌ Promotion failed: ' + err.message);
+      } finally {
+        showLoad(false);
+      }
+    }
+
+    async function preApproveEmail() {
+      const emailInput = document.getElementById('new-approval-email');
+      if (!emailInput) return;
+      const email = emailInput.value.trim().toLowerCase();
+      if (!email) { toast('❌ Please enter a valid email address.'); return; }
+      if (!email.includes('@')) { toast('❌ Email must contain @.'); return; }
+      
+      showLoad(true);
+      try {
+        const existing = await sbGet('user_approvals', '?email=eq.' + email);
+        if (existing.length > 0) {
+          if (existing[0].approved) {
+            toast('ℹ️ Email is already approved.');
+          } else {
+            await sbPatch('user_approvals', '?email=eq.' + email, { approved: true });
+            toast('👤 Email approved successfully!');
+            await logAuditAction('APPROVE_USER', 'system', null, `Pre-approved user email: ${email}`);
+          }
+        } else {
+          await sbPost('user_approvals', { email, approved: true, is_admin: false });
+          toast('👤 Email pre-approved successfully!');
+          await logAuditAction('PRE_APPROVE_USER', 'system', null, `Pre-approved user email: ${email}`);
+        }
+        emailInput.value = '';
+        await renderApprovals();
+      } catch (err) {
+        toast('❌ Pre-approval failed: ' + err.message);
       } finally {
         showLoad(false);
       }
@@ -4224,10 +4267,12 @@ RETURNS trigger AS $$
 BEGIN
   IF (SELECT count(*) FROM public.user_approvals) = 0 THEN
     INSERT INTO public.user_approvals (email, approved, is_admin)
-    VALUES (new.email, true, true);
+    VALUES (new.email, true, true)
+    ON CONFLICT (email) DO UPDATE SET approved = true, is_admin = true;
   ELSE
     INSERT INTO public.user_approvals (email, approved, is_admin)
-    VALUES (new.email, false, false);
+    VALUES (new.email, false, false)
+    ON CONFLICT (email) DO NOTHING;
   END IF;
   RETURN new;
 END;
@@ -4250,7 +4295,7 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Enable RLS on approvals
 ALTER TABLE user_approvals ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow select approvals" ON user_approvals FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow select approvals" ON user_approvals FOR SELECT TO public USING (true);
 CREATE POLICY "Allow insert approvals" ON user_approvals FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Allow update approvals" ON user_approvals FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
