@@ -1238,7 +1238,7 @@
       border-radius: 10px;
       font-size: 12.5px;
       font-weight: 600;
-      z-index: 9999;
+      z-index: 100010;
       transform: translateY(60px);
       opacity: 0;
       transition: all .3s;
@@ -3823,7 +3823,11 @@
         });
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.error_description || err.message || 'Login failed');
+          let msg = err.error_description || err.message || 'Login failed';
+          if (msg.includes('Invalid login credentials') || msg.includes('Invalid credentials')) {
+            msg = 'Invalid email or password. Please try again.';
+          }
+          throw new Error(msg);
         }
         const data = await res.json();
         const token = data.access_token;
@@ -3861,12 +3865,8 @@
       showLoad(true);
       try {
         const emailLower = email.trim().toLowerCase();
-        // Gating check: admin must pre-approve the email first
-        const existing = await sbGet('user_approvals', '?email=eq.' + emailLower);
-        if (existing.length === 0 || !existing[0].approved) {
-          throw new Error('This email address has not been pre-approved by the administrator. Please contact your admin.');
-        }
-
+        
+        // 1. Submit signup request to Supabase Auth
         const res = await fetch(`${SB_URL}/auth/v1/signup`, {
           method: 'POST',
           headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
@@ -3876,17 +3876,29 @@
           const err = await res.json();
           throw new Error(err.message || 'Registration failed');
         }
+        
         const data = await res.json();
-        if (data.access_token) {
-          AUTH_TOKEN = data.access_token;
-          sessionStorage.setItem('pp_auth_token', AUTH_TOKEN);
-          sessionStorage.setItem('pp_user_email', data.user.email);
-          document.getElementById('login-screen').style.display = 'none';
-          document.getElementById('app-container').style.display = 'flex';
-          toast('🔑 Account created and signed in!');
-          await loadData();
+        
+        // 2. Check if the user email has already been pre-approved in user_approvals
+        const existing = await sbGet('user_approvals', '?email=eq.' + emailLower);
+        const isApproved = existing.length > 0 && existing[0].approved;
+
+        if (isApproved) {
+          if (data.access_token) {
+            AUTH_TOKEN = data.access_token;
+            sessionStorage.setItem('pp_auth_token', AUTH_TOKEN);
+            sessionStorage.setItem('pp_user_email', data.user.email);
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-container').style.display = 'flex';
+            toast('🔑 Account created and signed in!');
+            await loadData();
+          } else {
+            toast('📧 Account created! Please check your email inbox to verify.');
+            toggleAuthMode('login');
+          }
         } else {
-          toast('📧 Account created! Please check your email inbox to verify.');
+          // Gated logic: Not pre-approved, show pending admin approval toast
+          toast('📧 Account created! Your registration is pending admin approval before you can sign in.');
           toggleAuthMode('login');
         }
       } catch (err) {
