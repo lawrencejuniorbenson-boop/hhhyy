@@ -3942,14 +3942,26 @@
             'INSERT': 'b-active', 'UPDATE': 'b-review', 'DELETE': 'b-paused', 'IMPORT': 'b-completed', 'CLEAR_DB': 'b-cancelled'
           }[l.action] || 'b-pipeline';
           const typeLabel = l.target_type === 'product' ? '🏢 Product' : l.target_type === 'project' ? '🚀 Project' : '⚙️ System';
-          const details = l.changes ? JSON.stringify(l.changes) : '—';
+          let detailsHtml = '—';
+          if (l.changes) {
+            if (typeof l.changes === 'object') {
+              detailsHtml = Object.entries(l.changes).map(([k, v]) => {
+                if (v && typeof v === 'object' && 'from' in v && 'to' in v) {
+                  return `<div style="margin-bottom:3px"><strong>${k}</strong>: <span style="color:var(--muted)">${v.from}</span> ➔ <span style="color:var(--navy);font-weight:700">${v.to}</span></div>`;
+                }
+                return `<div style="margin-bottom:3px"><strong>${k}</strong>: ${JSON.stringify(v)}</div>`;
+              }).join('');
+            } else {
+              detailsHtml = `<div>${l.changes}</div>`;
+            }
+          }
           return `<tr>
             <td data-label="Time" style="font-weight:600;color:var(--navy);font-size:11px">${dt}</td>
             <td data-label="User" style="font-weight:700">${l.user_email}</td>
             <td data-label="Action"><span class="badge ${actClass}">${l.action}</span></td>
             <td data-label="Target"><span style="font-weight:600">${typeLabel}</span></td>
             <td data-label="Item" style="font-weight:700;color:var(--navy)">${l.target_name || '—'}</td>
-            <td data-label="Details" style="font-family:monospace;font-size:10px;word-break:break-all;white-space:normal" title='${details.replace(/'/g, "&apos;")}'>${details}</td>
+            <td data-label="Details" style="font-size:10.5px;word-break:break-all;white-space:normal">${detailsHtml}</td>
           </tr>`;
         }).join('');
       } catch (err) {
@@ -4079,9 +4091,27 @@
       };
       try {
         if (editId) { 
+          const orig = PRODUCTS_DATA.find(x => x.id === editId);
+          const changes = {};
+          if (orig) {
+            const map = {
+              cat: 'category', name: 'name', code: 'product_code', offerings: 'offerings',
+              reporting_month: 'reporting_month', owner: 'owner', notes: 'notes',
+              accounts_opened: 'accounts_opened', active_accounts: 'active_accounts',
+              inactive_accounts: 'inactive_accounts', target_onboarding: 'target_onboarding',
+              compliance_status: 'compliance_status', risk_level: 'risk_level',
+              revenue_monthly: 'revenue_monthly', actual_revenue_monthly: 'actual_revenue_monthly'
+            };
+            Object.entries(map).forEach(([k, dbK]) => {
+              const newVal = d[k], oldVal = orig[dbK];
+              if (newVal !== oldVal) {
+                changes[dbK] = { from: oldVal ?? '—', to: newVal ?? '—' };
+              }
+            });
+          }
           await updateProduct(editId, d); 
           toast('✅ Product updated!'); 
-          await logAuditAction('UPDATE', 'product', editId, d.name, { code: d.code, category: d.cat });
+          await logAuditAction('UPDATE', 'product', editId, d.name, changes);
         } else { 
           const newId = await insertProduct(d); 
           toast('✅ Product added!'); 
@@ -4107,9 +4137,26 @@
       };
       try {
         if (editId) { 
+          const orig = PROJECTS_DATA.find(x => x.id === editId);
+          const changes = {};
+          if (orig) {
+            const map = {
+              cat: 'category', name: 'name', code: 'project_code', description: 'description',
+              start: 'start_date', end: 'end_date', reporting_month: 'reporting_month',
+              progress: 'progress', status: 'status', priority: 'priority',
+              owner: 'owner', notes: 'notes', budget_cost: 'budget_cost',
+              expected_benefit: 'expected_benefit', risk_level: 'risk_level', stage: 'stage'
+            };
+            Object.entries(map).forEach(([k, dbK]) => {
+              const newVal = d[k], oldVal = orig[dbK];
+              if (newVal !== oldVal) {
+                changes[dbK] = { from: oldVal ?? '—', to: newVal ?? '—' };
+              }
+            });
+          }
           await updateProjectInDB(editId, d); 
           toast('✅ Project updated!'); 
-          await logAuditAction('UPDATE', 'project', editId, d.name, { code: d.code, stage: d.stage });
+          await logAuditAction('UPDATE', 'project', editId, d.name, changes);
         } else { 
           const newId = await insertProjectInDB(d); 
           toast('✅ Project added!'); 
