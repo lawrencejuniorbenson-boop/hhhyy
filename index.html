@@ -2197,6 +2197,16 @@
       <h2 id="login-title">Sign In</h2>
       <p id="login-subtitle">Enter credentials to access secure portfolio dashboard</p>
       
+      <!-- ALERTS FOR USER NOTIFICATIONS -->
+      <div id="login-error-alert" style="margin-top: 14px; padding: 10px 14px; background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.2); border-radius: 8px; color: #FCA5A5; font-size: 11.5px; font-weight: 500; display: none; align-items: center; gap: 8px;">
+        <span style="font-size: 14px;">⚠️</span>
+        <span id="login-error-text">Incorrect email or password. Please try again.</span>
+      </div>
+      <div id="login-info-alert" style="margin-top: 14px; padding: 10px 14px; background: rgba(217, 119, 6, 0.08); border: 1px solid rgba(217, 119, 6, 0.25); border-radius: 8px; color: #F59E0B; font-size: 11.5px; font-weight: 500; display: none; align-items: center; gap: 8px;">
+        <span style="font-size: 14px;">📧</span>
+        <span id="login-info-text">Your account is pending admin approval.</span>
+      </div>
+      
       <div class="login-tabs">
         <div class="login-tab active" id="tab-login" onclick="toggleAuthMode('login')">Sign In</div>
         <div class="login-tab" id="tab-register" onclick="toggleAuthMode('register')">Create Account</div>
@@ -3862,6 +3872,12 @@
       document.getElementById('login-title').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
       document.getElementById('login-subtitle').textContent = mode === 'login' ? 'Enter credentials to access secure portfolio dashboard' : 'Register a new authenticated user on the platform';
       document.getElementById('btn-auth-submit').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
+      
+      // Clear alert banners on tab switch
+      const errAlert = document.getElementById('login-error-alert');
+      const infoAlert = document.getElementById('login-info-alert');
+      if (errAlert) errAlert.style.display = 'none';
+      if (infoAlert) infoAlert.style.display = 'none';
     }
     
     async function handleAuthSubmit(e) {
@@ -3918,6 +3934,21 @@
         } catch (e) { console.error(e); }
         await loadData();
       } catch (err) {
+        const errAlert = document.getElementById('login-error-alert');
+        const infoAlert = document.getElementById('login-info-alert');
+        if (err.message.includes('pending admin approval')) {
+          if (infoAlert) {
+            document.getElementById('login-info-text').textContent = 'Your account is pending admin approval. Please wait for an administrator to approve it.';
+            infoAlert.style.display = 'flex';
+          }
+          if (errAlert) errAlert.style.display = 'none';
+        } else {
+          if (errAlert) {
+            document.getElementById('login-error-text').textContent = err.message;
+            errAlert.style.display = 'flex';
+          }
+          if (infoAlert) infoAlert.style.display = 'none';
+        }
         toast('❌ Sign in failed: ' + err.message);
       } finally {
         showLoad(false);
@@ -3956,15 +3987,36 @@
             toast('🔑 Account created and signed in!');
             await loadData();
           } else {
+            const infoAlert = document.getElementById('login-info-alert');
+            const errAlert = document.getElementById('login-error-alert');
+            if (infoAlert) {
+              document.getElementById('login-info-text').textContent = 'Account created! Please check your email inbox to verify and sign in.';
+              infoAlert.style.display = 'flex';
+            }
+            if (errAlert) errAlert.style.display = 'none';
             toast('📧 Account created! Please check your email inbox to verify.');
             toggleAuthMode('login');
           }
         } else {
           // Gated logic: Not pre-approved, show pending admin approval toast
+          const infoAlert = document.getElementById('login-info-alert');
+          const errAlert = document.getElementById('login-error-alert');
+          if (infoAlert) {
+            document.getElementById('login-info-text').textContent = 'Your registration request has been submitted and is pending admin approval. You will be able to sign in once approved.';
+            infoAlert.style.display = 'flex';
+          }
+          if (errAlert) errAlert.style.display = 'none';
           toast('📧 Account created! Your registration is pending admin approval before you can sign in.');
           toggleAuthMode('login');
         }
       } catch (err) {
+        const errAlert = document.getElementById('login-error-alert');
+        const infoAlert = document.getElementById('login-info-alert');
+        if (errAlert) {
+          document.getElementById('login-error-text').textContent = err.message;
+          errAlert.style.display = 'flex';
+        }
+        if (infoAlert) infoAlert.style.display = 'none';
         toast('❌ Account registration failed: ' + err.message);
       } finally {
         showLoad(false);
