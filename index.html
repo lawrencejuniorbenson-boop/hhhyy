@@ -4112,17 +4112,25 @@
           container.innerHTML = `<div style="text-align:center;padding:12px;color:var(--muted);font-size:11px;font-style:italic">No users registered yet.</div>`;
           return;
         }
+        const currentAdminEmail = sessionStorage.getItem('pp_user_email') || '';
         container.innerHTML = list.map(u => {
-          let actionBtn = '';
+          let actionBtns = [];
           let badge = '';
+          const isSelf = u.email.toLowerCase() === currentAdminEmail.toLowerCase();
+          
           if (!u.approved) {
             badge = '<span class="badge b-pipeline" style="font-size:9px;padding:1px 5px">Pending</span>';
-            actionBtn = `<button class="a-btn a-view" onclick="approveUser('${u.email}')">Approve</button>`;
+            actionBtns.push(`<button class="a-btn a-view" onclick="approveUser('${u.email}')">Approve</button>`);
+            actionBtns.push(`<button class="a-btn a-del" onclick="rejectUser('${u.email}')" style="background:var(--red);border-color:var(--red);color:#fff">Reject</button>`);
           } else if (u.is_admin) {
             badge = '<span class="badge b-review" style="font-size:9px;padding:1px 5px;background:#F59E0B;color:#fff">Admin</span>';
+            if (!isSelf) {
+              actionBtns.push(`<button class="a-btn a-del" onclick="removeUser('${u.email}')" style="background:var(--red);border-color:var(--red);color:#fff">Remove</button>`);
+            }
           } else {
             badge = '<span class="badge b-completed" style="font-size:9px;padding:1px 5px">Member</span>';
-            actionBtn = `<button class="a-btn a-edit" onclick="makeAdmin('${u.email}')" style="background:var(--blue);border-color:var(--blue);font-size:10px">Make Admin</button>`;
+            actionBtns.push(`<button class="a-btn a-edit" onclick="makeAdmin('${u.email}')" style="background:var(--blue);border-color:var(--blue);font-size:10px">Make Admin</button>`);
+            actionBtns.push(`<button class="a-btn a-del" onclick="removeUser('${u.email}')" style="background:var(--red);border-color:var(--red);color:#fff">Remove</button>`);
           }
           return `
             <div class="qe-item" style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.05)">
@@ -4130,7 +4138,7 @@
                 <div class="qe-name" style="word-break:break-all;font-size:11.5px;font-weight:600">${u.email}</div>
                 <div class="qe-meta" style="font-size:9.5px;color:var(--muted);margin-top:2px">${badge} · Registered ${new Date(u.created_at).toLocaleDateString()}</div>
               </div>
-              <div style="display:flex;gap:4px">${actionBtn}</div>
+              <div style="display:flex;gap:4px">${actionBtns.join('')}</div>
             </div>
           `;
         }).join('');
@@ -4164,6 +4172,43 @@
         await renderApprovals();
       } catch (err) {
         toast('❌ Promotion failed: ' + err.message);
+      } finally {
+        showLoad(false);
+      }
+    }
+
+    async function rejectUser(email) {
+      if (!confirm(`Are you sure you want to REJECT the request from ${email}?`)) return;
+      showLoad(true);
+      try {
+        await sbDel('user_approvals', '?email=eq.' + email);
+        toast('❌ User request rejected.');
+        await logAuditAction('REJECT_USER', 'system', null, `Rejected user: ${email}`);
+        await renderApprovals();
+        await checkPendingApprovals();
+      } catch (err) {
+        toast('❌ Reject failed: ' + err.message);
+      } finally {
+        showLoad(false);
+      }
+    }
+
+    async function removeUser(email) {
+      const currentAdminEmail = sessionStorage.getItem('pp_user_email') || '';
+      if (email.toLowerCase() === currentAdminEmail.toLowerCase()) {
+        toast('❌ You cannot remove yourself.');
+        return;
+      }
+      if (!confirm(`Are you sure you want to REMOVE user ${email} from the platform?`)) return;
+      showLoad(true);
+      try {
+        await sbDel('user_approvals', '?email=eq.' + email);
+        toast('🗑️ User removed successfully.');
+        await logAuditAction('REMOVE_USER', 'system', null, `Removed user: ${email}`);
+        await renderApprovals();
+        await checkPendingApprovals();
+      } catch (err) {
+        toast('❌ Remove failed: ' + err.message);
       } finally {
         showLoad(false);
       }
@@ -4473,6 +4518,7 @@ ALTER TABLE user_approvals ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow select approvals" ON user_approvals FOR SELECT TO public USING (true);
 CREATE POLICY "Allow insert approvals" ON user_approvals FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Allow update approvals" ON user_approvals FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow delete approvals" ON user_approvals FOR DELETE TO authenticated USING (true);
 
 -- Secure backend policies requiring approved status
 CREATE POLICY "Allow approved products" ON products FOR ALL TO authenticated 
