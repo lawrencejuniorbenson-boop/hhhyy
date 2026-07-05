@@ -641,6 +641,38 @@
       font-family: inherit
     }
 
+    /* ── APPROVALS BANNER ────────────────────────────────────────────── */
+    .approvals-banner {
+      background: rgba(217, 119, 6, 0.1);
+      border: 1px solid rgba(217, 119, 6, 0.3);
+      border-radius: 11px;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .approvals-banner.hidden {
+      display: none;
+    }
+    .approvals-banner-text h3 {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #D97706;
+      margin-bottom: 3px;
+      margin-top: 0;
+    }
+    .approvals-banner-text p {
+      font-size: 11px;
+      color: var(--muted);
+      margin: 0;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.6; }
+      100% { transform: scale(1.05); opacity: 1; }
+    }
+
     .btn-setup:hover {
       background: var(--goldl)
     }
@@ -2316,6 +2348,14 @@
         </div>
         <button class="btn-setup" onclick="openAdmin()">Configure Now →</button>
       </div>
+      <!-- PENDING APPROVALS BANNER -->
+      <div class="approvals-banner hidden" id="approvals-banner">
+        <div class="approvals-banner-text">
+          <h3 style="display:flex;align-items:center;gap:6px"><span style="animation: pulse 1.5s infinite alternate; background: #D97706; width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span> Pending User Approvals</h3>
+          <p id="approvals-banner-desc">There are user registration requests waiting for your approval.</p>
+        </div>
+        <button class="a-btn a-view" onclick="openAdmin()" style="background:#D97706;border-color:#D97706;color:#fff;font-weight:800;border-radius:8px;font-size:11.5px;padding:8px 16px">Review Requests</button>
+      </div>
       <div class="err-banner" id="err-banner">
         ⚠️ <span id="err-text"></span>
         <button class="err-retry" onclick="loadData()">Retry</button>
@@ -3075,6 +3115,28 @@
     }
 
     /* ── LOAD DATA ──────────────────────────────────────────────────── */
+    async function checkPendingApprovals() {
+      const banner = document.getElementById('approvals-banner');
+      if (!banner) return;
+      if (!IS_ADMIN) {
+        banner.classList.add('hidden');
+        return;
+      }
+      try {
+        const pending = await sbGet('user_approvals', '?approved=eq.false');
+        if (pending.length > 0) {
+          const count = pending.length;
+          document.getElementById('approvals-banner-desc').textContent = `There ${count === 1 ? 'is' : 'are'} ${count} user registration request${count === 1 ? '' : 's'} waiting for your approval.`;
+          banner.classList.remove('hidden');
+        } else {
+          banner.classList.add('hidden');
+        }
+      } catch (err) {
+        console.error('Failed to check pending approvals:', err);
+        banner.classList.add('hidden');
+      }
+    }
+
     async function loadData() {
       if (!ok()) { document.getElementById('setup-banner').classList.remove('hidden'); showLoad(false); updateHomeStats(); return; }
       document.getElementById('setup-banner').classList.add('hidden');
@@ -3092,6 +3154,7 @@
       document.getElementById('last-upd').textContent = 'Updated ' + new Date().toLocaleTimeString();
       updateHomeStats();
       if (CURRENT_PAGE === 'dash') render();
+      await checkPendingApprovals();
       startRefresh();
     }
     function normProduct(r) {
@@ -4031,6 +4094,7 @@
         toast('👤 User approved successfully!');
         await logAuditAction('APPROVE_USER', 'system', null, `Approved user: ${email}`);
         await renderApprovals();
+        await checkPendingApprovals();
       } catch (err) {
         toast('❌ Approval failed: ' + err.message);
       } finally {
