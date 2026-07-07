@@ -1068,6 +1068,27 @@
       color: #991B1B
     }
 
+    select.badge {
+      cursor: pointer;
+      border: 1px solid transparent;
+      outline: none;
+      font-family: inherit;
+      padding: 3px 18px 3px 8px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+      background-position: right 6px center;
+      background-repeat: no-repeat;
+      background-size: 8px;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    select.badge:hover {
+      filter: brightness(0.95);
+    }
+    select.badge option {
+      background: #ffffff;
+      color: #000000;
+    }
+
     /* ── ACTION BUTTONS ─────────────────────────────────────────────── */
     .act {
       display: flex;
@@ -4462,7 +4483,10 @@
         document.getElementById('view-name').textContent = p.name;
         document.getElementById('view-sub').textContent = (CAT_LBL[p.cat] || p.cat).replace(/^\\S+\\s/, '') + ' · ' + (p.project_code || 'No Code');
         const cc = CAT_COL[p.cat] || '#888', net = p.expected_benefit - p.budget_cost, roi = p.budget_cost > 0 ? ((net / p.budget_cost) * 100).toFixed(1) : 0;
-        const tasksHtml = p.tasks.length ? p.tasks.map(t => { const sc = { Pending: 'b-pending', 'In Progress': 'b-review', Completed: 'b-compliant' }[t.status] || 'b-pending'; return `<tr><td style="font-weight:700;padding:8px">${t.task_text}</td><td style="padding:8px">${t.target_date || '—'}</td><td style="padding:8px">${t.owner || '—'}</td><td style="padding:8px"><span class="badge ${sc}">${t.status}</span></td></tr>`; }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:12px">No implementation steps defined.</td></tr>`;
+        const tasksHtml = p.tasks.length ? p.tasks.map(t => {
+          const sc = { Pending: 'b-pending', 'In Progress': 'b-review', Completed: 'b-compliant' }[t.status] || 'b-pending';
+          return `<tr><td style="font-weight:700;padding:8px">${t.task_text}</td><td style="padding:8px">${t.target_date || '—'}</td><td style="padding:8px">${t.owner || '—'}</td><td style="padding:8px"><select class="badge ${sc}" onchange="changeTaskStatus('${p.id}', '${t.id}', this.value)"><option value="Pending" ${t.status === 'Pending' ? 'selected' : ''}>Pending</option><option value="In Progress" ${t.status === 'In Progress' ? 'selected' : ''}>In Progress</option><option value="Completed" ${t.status === 'Completed' ? 'selected' : ''}>Completed</option></select></td></tr>`;
+        }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:12px">No implementation steps defined.</td></tr>`;
         document.getElementById('view-body').innerHTML = `
       <div class="view-hero" style="background:linear-gradient(135deg,#0F2035,#1B3A5C);">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -4719,6 +4743,36 @@ CREATE POLICY "Allow approved audit logs" ON audit_logs FOR ALL TO authenticated
       } catch (err) {
         toast('❌ Excel export failed: ' + err.message);
         console.error(err);
+      }
+    }
+    async function changeTaskStatus(projectId, taskId, newStatus) {
+      if (!ok()) { toast('❌ Configure Supabase first'); return; }
+      showLoad(true);
+      try {
+        const proj = PROJECTS_DATA.find(p => p.id === projectId);
+        if (!proj) throw new Error('Project not found');
+        const task = proj.tasks.find(t => t.id === taskId);
+        if (!task) throw new Error('Task not found');
+        const oldStatus = task.status;
+        await sbPatch('project_tasks', '?id=eq.' + taskId, { status: newStatus });
+        task.status = newStatus;
+        const completed = proj.tasks.filter(t => t.status === 'Completed').length;
+        const newProgress = proj.tasks.length ? Math.round((completed / proj.tasks.length) * 100) : 0;
+        await sbPatch('projects', '?id=eq.' + projectId, { progress: newProgress });
+        proj.progress = newProgress;
+        try {
+          await logAuditAction('UPDATE_TASK_STATUS', 'system', null, `Changed task "${task.task_text}" status from "${oldStatus}" to "${newStatus}" under project: ${proj.name}`, { projectId, taskId, oldStatus, newStatus, newProgress });
+        } catch (e) { console.error('Audit log failed:', e); }
+        render();
+        openView(projectId);
+        toast('✅ Task status updated!');
+      } catch (err) {
+        toast('❌ Failed to update status: ' + err.message);
+        console.error(err);
+        await loadData();
+        if (viewId === projectId) openView(projectId);
+      } finally {
+        showLoad(false);
       }
     }
     async function importData(event) { const f = event.target.files[0]; if (!f) return; if (!ok()) { toast('❌ Configure Supabase first'); return; } const r = new FileReader(); r.onload = async e => { try { const d = JSON.parse(e.target.result); const products = d.products || (Array.isArray(d) ? d : []); const projects = d.projects || []; showLoad(true); let pc = 0, pjc = 0; for (const p of products) { await insertProduct({ cat: p.cat || p.category_id, name: p.name, code: p.product_code || '', offerings: p.offerings || '', gaps: p.gaps || [], markets: p.markets || [], enhancements: p.enhancements || [], start: p.start_date || null, end: p.end_date || null, progress: 0, status: p.status || 'Active', owner: p.owner || '', notes: p.notes || '', accounts_opened: p.accounts_opened || 0, active_accounts: p.active_accounts || 0, inactive_accounts: p.inactive_accounts || 0, target_onboarding: p.target_onboarding || 0, is_selling: true, compliance_status: p.compliance_status || 'Compliant', performing: 'Yes', revenue_monthly: p.revenue_monthly || null, actual_revenue_monthly: p.actual_revenue_monthly || null, risk_level: p.risk_level || 'Low' }); pc++; } for (const p of projects) { await insertProjectInDB({ cat: p.cat || p.category_id, name: p.name, code: p.project_code || '', description: p.description || '', start: p.start_date || null, end: p.end_date || null, progress: p.progress || 0, status: p.status || 'Pipeline', priority: p.priority || 'Medium', owner: p.owner || '', notes: p.notes || '', budget_cost: p.budget_cost || 0, expected_benefit: p.expected_benefit || 0, risk_level: p.risk_level || 'Low', stage: p.stage || 'Initiation', tasks: p.tasks || [] }); pjc++; } await loadData(); toast(`✅ Imported ${pc} products & ${pjc} projects!`); await logAuditAction('IMPORT', 'system', null, 'Bulk Backup JSON Import', { products: pc, projects: pjc }); } catch (err) { toast('❌ Import failed: ' + err.message); showLoad(false); } }; r.readAsText(f); event.target.value = ''; }
