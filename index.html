@@ -3872,13 +3872,14 @@
       document.getElementById('t-status').value = 'Pending'; renderFormTasks();
     }
     function removeFormTask(idx) { formTasks.splice(idx, 1); renderFormTasks(); }
+    function changeFormTaskStatus(idx, newStatus) { if (formTasks[idx]) { formTasks[idx].status = newStatus; renderFormTasks(); } }
     function renderFormTasks() {
       const c = document.getElementById('t-preview'); if (!c) return;
       calcProjectProgress();
       if (!formTasks.length) { c.innerHTML = `<div style="text-align:center;padding:12px;color:var(--muted);font-size:11px;font-style:italic">No steps added yet.</div>`; return; }
       c.innerHTML = formTasks.map((t, i) => {
         const stCss = { Pending: 'b-pending', 'In Progress': 'b-review', Completed: 'b-compliant' }[t.status] || 'b-pending';
-        return `<div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:8px 12px;border-radius:6px;border:1px solid var(--bdr);gap:10px"><div style="flex:1"><strong style="font-size:12px;color:var(--navy)">${t.task_text}</strong><div style="font-size:10px;color:var(--muted);margin-top:2px">${t.target_date ? '📅 ' + t.target_date : ''}${t.owner ? ' · 👤 ' + t.owner : ''}</div></div><span class="badge ${stCss}" style="font-size:9.5px">${t.status}</span><button class="cls" onclick="removeFormTask(${i})" style="width:24px;height:24px;font-size:12px;padding:0">✕</button></div>`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:8px 12px;border-radius:6px;border:1px solid var(--bdr);gap:10px"><div style="flex:1"><strong style="font-size:12px;color:var(--navy)">${t.task_text}</strong><div style="font-size:10px;color:var(--muted);margin-top:2px">${t.target_date ? '📅 ' + t.target_date : ''}${t.owner ? ' · 👤 ' + t.owner : ''}</div></div><select class="badge ${stCss}" style="font-size:9.5px" onchange="changeFormTaskStatus(${i}, this.value)"><option value="Pending" ${t.status === 'Pending' ? 'selected' : ''}>Pending</option><option value="In Progress" ${t.status === 'In Progress' ? 'selected' : ''}>In Progress</option><option value="Completed" ${t.status === 'Completed' ? 'selected' : ''}>Completed</option></select><button class="cls" onclick="removeFormTask(${i})" style="width:24px;height:24px;font-size:12px;padding:0">✕</button></div>`;
       }).join('');
     }
 
