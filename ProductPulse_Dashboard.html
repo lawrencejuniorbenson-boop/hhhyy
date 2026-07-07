@@ -2660,7 +2660,7 @@
             </select>
           </div>
           <div class="f">
-            <label>Reporting Month *</label>
+            <label id="lbl-f-rep-month">Reporting Month *</label>
             <input id="f-rep-month" type="month" placeholder="YYYY-MM" title="Select month and year for reporting">
           </div>
           <div class="f s2"><label id="lbl-f-name">Product Name *</label><input id="f-name" type="text"
@@ -3062,6 +3062,28 @@
       document.getElementById('page-dash').style.display = '';
       // Body class for mode visibility
       document.body.className = 'mode-' + mode;
+
+      // Update period selector options based on mode
+      const periodSelect = document.getElementById('period-select');
+      if (periodSelect) {
+        if (mode === 'projects') {
+          periodSelect.innerHTML = `
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          `;
+          if (['weekly', 'quarterly'].includes(CURRENT_PERIOD)) {
+            CURRENT_PERIOD = 'monthly';
+          }
+        } else {
+          periodSelect.innerHTML = `
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          `;
+        }
+        periodSelect.value = CURRENT_PERIOD;
+      }
       // Sidebar active
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       const navId = 'nav-' + mode + '-' + (cat || 'all');
@@ -3249,15 +3271,26 @@
       <div class="kpi k5"><div class="kpi-ico">👤</div><div class="kpi-lbl">Active Accounts</div><div class="kpi-val">${N(Math.round(vd.reduce((s, p) => s + p.active_accounts, 0) * scale))}</div><div class="kpi-sub">${N(Math.round(vd.reduce((s, p) => s + p.inactive_accounts, 0) * scale))} inactive</div></div>
       <div class="kpi k7"><div class="kpi-ico">💰</div><div class="kpi-lbl">${lbl} Revenue</div><div class="kpi-val">${CCompact(totalActRev * scale)}</div><div class="kpi-sub">Target: ${CCompact(totalExpRev * scale)}${totalExpRev > 0 ? ` · <span style="font-weight:700;color:${revDiff >= 0 ? 'var(--green)' : 'var(--red)'}">Net: ${revDiff >= 0 ? '+' : ''}${CCompact(revDiff * scale)} (${revPct}% ROI)</span>` : ''}</div></div>`;
       } else if (CURRENT_MODE === 'projects') {
-        const active = vd.filter(p => p.status === 'Active').length;
-        const cost = vd.reduce((s, p) => s + (p.budget_cost || 0), 0);
-        const avgProg = total ? Math.round(vd.reduce((s, p) => s + p.progress, 0) / total) : 0;
-        const highRisk = vd.filter(p => ['High', 'Critical'].includes(p.risk_level)).length;
+        const now = new Date();
+        const curYearStr = String(now.getFullYear());
+        const curMonthStr = curYearStr + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        let projectsAdded = 0;
+        if (CURRENT_PERIOD === 'monthly') {
+          projectsAdded = vd.filter(p => p.reporting_month && p.reporting_month.startsWith(curMonthStr)).length;
+        } else {
+          projectsAdded = vd.filter(p => p.reporting_month && p.reporting_month.startsWith(curYearStr)).length;
+        }
+        const ongoing = vd.filter(p => ['Active', 'Pipeline', 'In Review', 'Paused'].includes(p.status)).length;
+        const completed = vd.filter(p => p.status === 'Completed').length;
+        const totalBudget = vd.reduce((s, p) => s + (p.budget_cost || 0), 0);
+        const periodName = CURRENT_PERIOD === 'monthly' ? 'This Month' : 'This Year';
+
         document.getElementById('kpi-row').innerHTML = `
       <div class="kpi k1"><div class="kpi-ico">🚀</div><div class="kpi-lbl">Total Projects</div><div class="kpi-val">${total}</div><div class="kpi-sub">${(CAT_LBL[currentCat] || 'All').replace(/^\S+\s/, '')}</div></div>
-      <div class="kpi k2"><div class="kpi-ico">⚡</div><div class="kpi-lbl">Active Projects</div><div class="kpi-val">${active}</div><div class="kpi-sub">${vd.filter(p => p.status === 'Pipeline').length} in pipeline</div></div>
-      <div class="kpi k3"><div class="kpi-ico">💳</div><div class="kpi-lbl">${lbl} Budget</div><div class="kpi-val">${CCompact(cost * scale)}</div><div class="kpi-sub">Allocated budget</div></div>
-      <div class="kpi k4"><div class="kpi-ico">📐</div><div class="kpi-lbl">Avg Progress</div><div class="kpi-val">${avgProg}%</div><div class="kpi-sub">${highRisk} high/critical risk</div></div>`;
+      <div class="kpi k2"><div class="kpi-ico">📅</div><div class="kpi-lbl">Projects Added (${periodName})</div><div class="kpi-val">${projectsAdded}</div><div class="kpi-sub">New on platform</div></div>
+      <div class="kpi k3"><div class="kpi-ico">⚡</div><div class="kpi-lbl">Ongoing Projects</div><div class="kpi-val">${ongoing}</div><div class="kpi-sub">${vd.filter(p => p.status === 'Pipeline').length} in pipeline</div></div>
+      <div class="kpi k4"><div class="kpi-ico">✅</div><div class="kpi-lbl">Completed Projects</div><div class="kpi-val">${completed}</div><div class="kpi-sub">Out of ${total} projects</div></div>
+      <div class="kpi k5"><div class="kpi-ico">💳</div><div class="kpi-lbl">Total Budget</div><div class="kpi-val">${CCompact(totalBudget)}</div><div class="kpi-sub">Allocated cost</div></div>`;
       } else {
         const ap = PRODUCTS_DATA.filter(p => ['Active', 'In Review'].includes(p.status));
         const aj = PROJECTS_DATA.filter(p => ['Active', 'In Review'].includes(p.status));
@@ -3267,7 +3300,7 @@
         document.getElementById('kpi-row').innerHTML = `
       <div class="kpi k1"><div class="kpi-ico">💼</div><div class="kpi-lbl">Ongoing Products</div><div class="kpi-val">${ap.length}</div><div class="kpi-sub">Active bank products</div></div>
       <div class="kpi k2"><div class="kpi-ico">🚀</div><div class="kpi-lbl">Ongoing Projects</div><div class="kpi-val">${aj.length}</div><div class="kpi-sub">Active in-flight</div></div>
-      <div class="kpi k3"><div class="kpi-ico">💳</div><div class="kpi-lbl">${lbl} Budget</div><div class="kpi-val">${CCompact(cost * scale)}</div><div class="kpi-sub">Project spend</div></div>
+      <div class="kpi k3"><div class="kpi-ico">💳</div><div class="kpi-lbl">Total Project Budget</div><div class="kpi-val">${CCompact(cost)}</div><div class="kpi-sub">Total allocated spend</div></div>
       <div class="kpi k4"><div class="kpi-ico">💰</div><div class="kpi-lbl">${lbl} Product Revenue</div><div class="kpi-val">${CCompact(rev * scale)}</div><div class="kpi-sub">Active product revenue</div></div>
       <div class="kpi k5"><div class="kpi-ico">🛡️</div><div class="kpi-lbl">Compliant Products</div><div class="kpi-val">${ap.filter(p => p.compliance_status === 'Compliant').length}</div><div class="kpi-sub">Of ${ap.length} active</div></div>
       <div class="kpi k6"><div class="kpi-ico">⚠️</div><div class="kpi-lbl">High Risk</div><div class="kpi-val">${hr}</div><div class="kpi-sub">Products &amp; Projects</div></div>`;
@@ -3328,8 +3361,8 @@
           if (year == null) year = currentYr;
 
           const isProj = CURRENT_MODE === 'projects';
-          const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
-          const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
+          const rev = isProj ? 0 : (p.actual_revenue_monthly || 0);
+          const onb = isProj ? 1 : (p.accounts_opened || 0);
 
           const pIdx = (year - minYear) * 12 + mIdx;
           if (pIdx < 0 || pIdx >= points.length) return;
@@ -3365,8 +3398,8 @@
           if (year == null) year = currentYr;
 
           const isProj = CURRENT_MODE === 'projects';
-          const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
-          const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
+          const rev = isProj ? 0 : (p.actual_revenue_monthly || 0);
+          const onb = isProj ? 1 : (p.accounts_opened || 0);
 
           if (isProj) {
             const wTarget = mIdx != null ? mIdx * 4 : (p.start_date ? Math.max(0, Math.min(51, Math.ceil(((new Date(p.start_date) - new Date(year, 0, 1)) / 86400000 + new Date(year, 0, 1).getDay() + 1) / 7) - 1)) : 0);
@@ -3414,8 +3447,8 @@
           if (year == null) year = currentYr;
 
           const isProj = CURRENT_MODE === 'projects';
-          const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
-          const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
+          const rev = isProj ? 0 : (p.actual_revenue_monthly || 0);
+          const onb = isProj ? 1 : (p.accounts_opened || 0);
 
           const qIdx = mIdx != null ? Math.floor(mIdx / 3) : (p.start_date ? Math.floor(new Date(p.start_date).getMonth() / 3) : 0);
           if (p.reporting_month || isProj) {
@@ -3454,8 +3487,8 @@
           if (year == null) year = currentYr;
 
           const isProj = CURRENT_MODE === 'projects';
-          const rev = isProj ? (p.expected_benefit || 0) : (p.actual_revenue_monthly || 0);
-          const onb = isProj ? (p.budget_cost || 0) : (p.accounts_opened || 0);
+          const rev = isProj ? 0 : (p.actual_revenue_monthly || 0);
+          const onb = isProj ? 1 : (p.accounts_opened || 0);
 
           const bIdx = mIdx != null ? mIdx : (p.start_date ? Math.min(bkts - 1, Math.floor(Math.max(0, (new Date(p.start_date) - new Date(year, 0, 1)) / 86400000) / dpb)) : 0);
           if (p.reporting_month || isProj) {
@@ -3524,11 +3557,12 @@
       }
       dc('trendRev');
       dc('trendOnb');
-      const revLabel = CURRENT_MODE === 'projects' ? 'Expected Benefits' : 'Revenue';
-      const accLabel = CURRENT_MODE === 'projects' ? 'Budget Cost' : 'Accounts Opened';
+      const isProj = CURRENT_MODE === 'projects';
+      const revLabel = isProj ? 'Expected Benefits' : 'Revenue';
+      const accLabel = isProj ? 'Projects Added' : 'Accounts Opened';
 
       const cardRev = document.getElementById('c3-title-rev') ? document.getElementById('c3-title-rev').closest('.chart-card') : null;
-      if (CURRENT_MODE === 'projects') {
+      if (isProj) {
         if (cardRev) cardRev.style.display = 'none';
       } else {
         if (cardRev) cardRev.style.display = 'block';
@@ -3537,7 +3571,7 @@
       }
 
       if (t3Onb) t3Onb.textContent = accLabel + ' Trend — ' + periodLabel;
-      charts.trendOnb = new Chart(document.getElementById('onboardingTrendChart'), { type: 'line', data: { labels: td.map(t => t.label), datasets: [{ label: accLabel, data: td.map(t => t.onboarding), borderColor: '#D4A843', backgroundColor: 'rgba(212,168,67,0.1)', fill: true, tension: 0.35, pointRadius: CURRENT_PERIOD === 'yearly' ? 0 : 3 }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, grid: { color: '#F1F5FB' }, ticks: { font: { size: 8 } } }, x: { ticks: { font: { size: 8 }, maxTicksLimit: CURRENT_PERIOD === 'weekly' ? 13 : 12, autoSkip: true }, grid: { display: false } } }, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } }, tooltip: { backgroundColor: 'rgba(15,32,53,0.9)', titleFont: { size: 11 }, bodyFont: { size: 10 } } } } });
+      charts.trendOnb = new Chart(document.getElementById('onboardingTrendChart'), { type: 'line', data: { labels: td.map(t => t.label), datasets: [{ label: accLabel, data: td.map(t => t.onboarding), borderColor: '#D4A843', backgroundColor: 'rgba(212,168,67,0.1)', fill: true, tension: 0.35, pointRadius: CURRENT_PERIOD === 'yearly' ? 0 : 3 }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, grid: { color: '#F1F5FB' }, ticks: { font: { size: 8 }, stepSize: isProj ? 1 : undefined } }, x: { ticks: { font: { size: 8 }, maxTicksLimit: CURRENT_PERIOD === 'weekly' ? 13 : 12, autoSkip: true }, grid: { display: false } } }, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } }, tooltip: { backgroundColor: 'rgba(15,32,53,0.9)', titleFont: { size: 11 }, bodyFont: { size: 10 } } } } });
     }
 
     /* ── TABLE ──────────────────────────────────────────────────────── */
@@ -3625,6 +3659,21 @@
       document.getElementById('lbl-f-offerings').textContent = isProd ? 'Current Offerings' : 'Description & Objectives';
       document.getElementById('lbl-f-notes').textContent = isProd ? 'Additional Notes' : 'Notes / Risks';
       document.getElementById('lbl-sec-3').textContent = isProd ? 'Compliance & Risk' : 'Project Stage & Risk';
+      
+      const fRepMonth = document.getElementById('f-rep-month');
+      const lblRepMonth = document.getElementById('lbl-f-rep-month');
+      if (lblRepMonth && fRepMonth) {
+        if (isProd) {
+          lblRepMonth.textContent = 'Reporting Month *';
+          fRepMonth.type = 'month';
+          fRepMonth.placeholder = 'YYYY-MM';
+        } else {
+          lblRepMonth.textContent = 'Project Date *';
+          fRepMonth.type = 'date';
+          fRepMonth.placeholder = 'YYYY-MM-DD';
+        }
+      }
+
       clearForm(); toggleCatFields();
       document.getElementById('add-overlay').classList.add('open');
     }
@@ -3634,6 +3683,21 @@
       openEdit(id);
     }
     function openEdit(id) {
+      const isProd = CURRENT_MODE === 'products';
+      const fRepMonth = document.getElementById('f-rep-month');
+      const lblRepMonth = document.getElementById('lbl-f-rep-month');
+      if (lblRepMonth && fRepMonth) {
+        if (isProd) {
+          lblRepMonth.textContent = 'Reporting Month *';
+          fRepMonth.type = 'month';
+          fRepMonth.placeholder = 'YYYY-MM';
+        } else {
+          lblRepMonth.textContent = 'Project Date *';
+          fRepMonth.type = 'date';
+          fRepMonth.placeholder = 'YYYY-MM-DD';
+        }
+      }
+
       if (CURRENT_MODE === 'products') {
         const p = PRODUCTS_DATA.find(x => x.id === id); if (!p) return;
         editId = id; formGaps = [...p.gaps]; formMkts = [...p.markets]; formEnhs = [...p.enhancements];
@@ -4296,13 +4360,17 @@
     }
     async function saveProject() {
       const cat = document.getElementById('f-cat').value, name = document.getElementById('f-name').value.trim(), start = document.getElementById('f-start').value;
-      if (!cat) { toast('⚠️ Select a category'); return; } if (!name) { toast('⚠️ Enter project name'); return; } if (!start) { toast('⚠️ Set a start date'); return; }
+      const projectDate = document.getElementById('f-rep-month').value;
+      if (!cat) { toast('⚠️ Select a category'); return; }
+      if (!name) { toast('⚠️ Enter project name'); return; }
+      if (!projectDate) { toast('⚠️ Set a Project Date'); return; }
+      if (!start) { toast('⚠️ Set a start date'); return; }
       if (!ok()) { toast('❌ Supabase not configured'); return; }
       const btn = document.getElementById('mod-save-btn'); btn.disabled = true; btn.textContent = editId ? 'Updating…' : 'Saving…';
       const fpri = document.getElementById('f-priority');
       const d = {
         cat, name, code: document.getElementById('f-code').value, description: document.getElementById('f-offerings').value, start, end: document.getElementById('f-end').value,
-        reporting_month: document.getElementById('f-rep-month').value || null,
+        reporting_month: projectDate || null,
         progress: Math.min(100, Math.max(0, Number(document.getElementById('f-progress').value) || 0)),
         status: document.getElementById('f-status').value, priority: fpri ? fpri.value : 'Medium', owner: document.getElementById('f-owner').value, notes: document.getElementById('f-notes').value,
         budget_cost: Number(document.getElementById('f-budget-cost').value) || 0, expected_benefit: 0,
@@ -4395,7 +4463,7 @@
       <div class="detail-grid">
         <div class="df"><label>Category</label><div class="val" style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:${cc};border-radius:2px;display:inline-block"></span>${(CAT_LBL[p.cat] || p.cat).replace(/^\\S+\\s/, '')}</div></div>
         <div class="df"><label>Project Code</label><div class="val">${p.project_code || '—'}</div></div>
-        <div class="df"><label>Reporting Month</label><div class="val" style="font-weight:700;color:var(--navy)">${p.reporting_month || '—'}</div></div>
+        <div class="df"><label>Project Date</label><div class="val" style="font-weight:700;color:var(--navy)">${p.reporting_month || '—'}</div></div>
         <div class="df"><label>Sponsor / Owner</label><div class="val">${p.owner || '—'}</div></div>
         <div class="df"><label>Timeline</label><div class="val">${p.start_date || '—'} → ${p.end_date || 'Ongoing'}</div></div>
         <div class="sec-sep"></div>
