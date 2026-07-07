@@ -4485,13 +4485,14 @@
         const cc = CAT_COL[p.cat] || '#888', net = p.expected_benefit - p.budget_cost, roi = p.budget_cost > 0 ? ((net / p.budget_cost) * 100).toFixed(1) : 0;
         const tasksHtml = p.tasks.length ? p.tasks.map(t => {
           const sc = { Pending: 'b-pending', 'In Progress': 'b-review', Completed: 'b-compliant' }[t.status] || 'b-pending';
-          return `<tr><td style="font-weight:700;padding:8px">${t.task_text}</td><td style="padding:8px">${t.target_date || '—'}</td><td style="padding:8px">${t.owner || '—'}</td><td style="padding:8px"><select class="badge ${sc}" onchange="changeTaskStatus('${p.id}', '${t.id}', this.value)"><option value="Pending" ${t.status === 'Pending' ? 'selected' : ''}>Pending</option><option value="In Progress" ${t.status === 'In Progress' ? 'selected' : ''}>In Progress</option><option value="Completed" ${t.status === 'Completed' ? 'selected' : ''}>Completed</option></select></td></tr>`;
+          const tid = t.id || '';
+          return `<tr><td style="font-weight:700;padding:8px">${t.task_text}</td><td style="padding:8px">${t.target_date || '—'}</td><td style="padding:8px">${t.owner || '—'}</td><td style="padding:8px"><select class="badge ${sc}" data-taskid="${tid}" data-projectid="${p.id}" onchange="changeTaskStatus('${p.id}', '${tid}', this.value, this)"><option value="Pending" ${t.status === 'Pending' ? 'selected' : ''}>Pending</option><option value="In Progress" ${t.status === 'In Progress' ? 'selected' : ''}>In Progress</option><option value="Completed" ${t.status === 'Completed' ? 'selected' : ''}>Completed</option></select></td></tr>`;
         }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:12px">No implementation steps defined.</td></tr>`;
         document.getElementById('view-body').innerHTML = `
       <div class="view-hero" style="background:linear-gradient(135deg,#0F2035,#1B3A5C);">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
           <div><h2>${p.name}</h2><div class="view-hero-meta"><span class="badge ${STS_CSS[p.status] || 'b-pipeline'}">${p.status}</span><span class="badge ${PRI_CSS[p.priority] || 'b-med'}">${p.priority} Priority</span><span class="badge ${RSK_CSS[p.risk_level] || 'b-low-risk'}">${p.risk_level} Risk</span><span class="badge b-review" style="background:#E0F2FE;color:#0369A1">${p.stage} Stage</span></div></div>
-          <div style="text-align:right;flex-shrink:0"><div style="font-size:30px;font-weight:900;color:var(--gold)">${p.progress}%</div><div style="font-size:10px;color:rgba(255,255,255,.5)">Progress</div></div>
+          <div style="text-align:right;flex-shrink:0"><div id="view-progress-pct" style="font-size:30px;font-weight:900;color:var(--gold)">${p.progress}%</div><div style="font-size:10px;color:rgba(255,255,255,.5)">Progress</div></div>
         </div>
       </div>
       <div class="detail-grid">
@@ -4745,34 +4746,53 @@ CREATE POLICY "Allow approved audit logs" ON audit_logs FOR ALL TO authenticated
         console.error(err);
       }
     }
-    async function changeTaskStatus(projectId, taskId, newStatus) {
+    async function changeTaskStatus(projectId, taskId, newStatus, selectEl) {
       if (!ok()) { toast('❌ Configure Supabase first'); return; }
-      showLoad(true);
+      // Guard: task may not have a DB id yet (e.g. opened before first loadData)
+      if (!taskId) {
+        toast('❌ Task ID missing — please close and reopen this project to refresh.');
+        return;
+      }
+      // Capture previous value for rollback on error
+      const prevStatus = selectEl ? selectEl.dataset.prevStatus || '' : '';
+      if (selectEl) selectEl.dataset.prevStatus = newStatus;
+      const SC = { Pending: 'b-pending', 'In Progress': 'b-review', Completed: 'b-compliant' };
       try {
+        // Find the project in global state regardless of current view mode
         const proj = PROJECTS_DATA.find(p => p.id === projectId);
-        if (!proj) throw new Error('Project not found');
-        const task = proj.tasks.find(t => t.id === taskId);
-        if (!task) throw new Error('Task not found');
+        if (!proj) throw new Error('Project not found in local state');
+        const task = proj.tasks.find(t => String(t.id) === String(taskId));
+        if (!task) throw new Error('Task not found — please close and reopen this project.');
         const oldStatus = task.status;
+        // Optimistic UI: update select badge colour immediately
+        if (selectEl) { selectEl.className = 'badge ' + (SC[newStatus] || 'b-pending'); }
+        // Persist to Supabase
         await sbPatch('project_tasks', '?id=eq.' + taskId, { status: newStatus });
         task.status = newStatus;
+        // Recalculate project progress
         const completed = proj.tasks.filter(t => t.status === 'Completed').length;
         const newProgress = proj.tasks.length ? Math.round((completed / proj.tasks.length) * 100) : 0;
         await sbPatch('projects', '?id=eq.' + projectId, { progress: newProgress });
         proj.progress = newProgress;
+        // Update progress display inside the open modal in-place
+        const pctEl = document.getElementById('view-progress-pct');
+        if (pctEl) pctEl.textContent = newProgress + '%';
+        // Refresh main dashboard cards/table
+        if (CURRENT_PAGE === 'dash') render();
         try {
-          await logAuditAction('UPDATE_TASK_STATUS', 'system', null, `Changed task "${task.task_text}" status from "${oldStatus}" to "${newStatus}" under project: ${proj.name}`, { projectId, taskId, oldStatus, newStatus, newProgress });
+          await logAuditAction('UPDATE_TASK_STATUS', 'system', null,
+            `Changed task "${task.task_text}" status from "${oldStatus}" to "${newStatus}" under project: ${proj.name}`,
+            { projectId, taskId, oldStatus, newStatus, newProgress });
         } catch (e) { console.error('Audit log failed:', e); }
-        render();
-        openView(projectId);
         toast('✅ Task status updated!');
       } catch (err) {
-        toast('❌ Failed to update status: ' + err.message);
-        console.error(err);
-        await loadData();
-        if (viewId === projectId) openView(projectId);
-      } finally {
-        showLoad(false);
+        toast('❌ Failed to update: ' + err.message);
+        console.error('[changeTaskStatus]', err);
+        // Rollback optimistic UI
+        if (selectEl && prevStatus) {
+          selectEl.value = prevStatus;
+          selectEl.className = 'badge ' + (SC[prevStatus] || 'b-pending');
+        }
       }
     }
     async function importData(event) { const f = event.target.files[0]; if (!f) return; if (!ok()) { toast('❌ Configure Supabase first'); return; } const r = new FileReader(); r.onload = async e => { try { const d = JSON.parse(e.target.result); const products = d.products || (Array.isArray(d) ? d : []); const projects = d.projects || []; showLoad(true); let pc = 0, pjc = 0; for (const p of products) { await insertProduct({ cat: p.cat || p.category_id, name: p.name, code: p.product_code || '', offerings: p.offerings || '', gaps: p.gaps || [], markets: p.markets || [], enhancements: p.enhancements || [], start: p.start_date || null, end: p.end_date || null, progress: 0, status: p.status || 'Active', owner: p.owner || '', notes: p.notes || '', accounts_opened: p.accounts_opened || 0, active_accounts: p.active_accounts || 0, inactive_accounts: p.inactive_accounts || 0, target_onboarding: p.target_onboarding || 0, is_selling: true, compliance_status: p.compliance_status || 'Compliant', performing: 'Yes', revenue_monthly: p.revenue_monthly || null, actual_revenue_monthly: p.actual_revenue_monthly || null, risk_level: p.risk_level || 'Low' }); pc++; } for (const p of projects) { await insertProjectInDB({ cat: p.cat || p.category_id, name: p.name, code: p.project_code || '', description: p.description || '', start: p.start_date || null, end: p.end_date || null, progress: p.progress || 0, status: p.status || 'Pipeline', priority: p.priority || 'Medium', owner: p.owner || '', notes: p.notes || '', budget_cost: p.budget_cost || 0, expected_benefit: p.expected_benefit || 0, risk_level: p.risk_level || 'Low', stage: p.stage || 'Initiation', tasks: p.tasks || [] }); pjc++; } await loadData(); toast(`✅ Imported ${pc} products & ${pjc} projects!`); await logAuditAction('IMPORT', 'system', null, 'Bulk Backup JSON Import', { products: pc, projects: pjc }); } catch (err) { toast('❌ Import failed: ' + err.message); showLoad(false); } }; r.readAsText(f); event.target.value = ''; }
