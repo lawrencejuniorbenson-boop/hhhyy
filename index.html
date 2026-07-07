@@ -3221,7 +3221,7 @@
       return { id: r.id, project_code: r.project_code || '', cat: r.category_id, name: r.name, description: r.description || '', start_date: r.start_date || '', end_date: r.end_date || '', progress: Number(r.progress) || 0, status: r.status || 'Pipeline', priority: r.priority || 'Medium', owner: r.owner || '', notes: r.notes || '', budget_cost: r.budget_cost != null ? Number(r.budget_cost) : 0, expected_benefit: r.expected_benefit != null ? Number(r.expected_benefit) : 0, risk_level: r.risk_level || 'Low', stage: r.stage || 'Initiation', tasks: j(r.tasks), reporting_month: r.reporting_month || '', created_at: r.created_at || '' };
     }
     function applyDBSettings(sets) { const m = {}; (sets || []).forEach(r => m[r.key] = r.value); if (m.title) SETTINGS.title = m.title; if (m.subtitle) SETTINGS.sub = m.subtitle; if (m.logo_letter) SETTINGS.ll = m.logo_letter;['navy', 'gold', 'blue', 'green', 'red', 'amber'].forEach(k => { if (m['color_' + k]) SETTINGS.colors[k] = m['color_' + k]; }); applyDOM(); }
-    function startRefresh() { clearInterval(refreshTimer); refreshTimer = setInterval(loadData, 60000); }
+    function startRefresh() { clearInterval(refreshTimer); refreshTimer = setInterval(loadData, 20000); }
 
     /* ── WRITE OPS ──────────────────────────────────────────────────── */
     async function insertProduct(d) { const [p] = await sbPost('products', corePayload(d)); await insertChildren(p.id, d.gaps, d.markets, d.enhancements); return p.id; }
@@ -3261,7 +3261,12 @@
     }
 
     /* ── RENDER ─────────────────────────────────────────────────────── */
-    function render() { renderKPIs(); renderCharts(); renderTable(); }
+    let renderPending = false;
+    function render() {
+      if (renderPending) return;
+      renderPending = true;
+      requestAnimationFrame(() => { renderPending = false; renderKPIs(); renderCharts(); renderTable(); });
+    }
     function vis() { const d = getActiveData(); return currentCat === 'all' ? d : d.filter(p => p.cat === currentCat); }
     function filt() {
       const q = (document.getElementById('srch-q')?.value || '').toLowerCase();
@@ -3537,6 +3542,18 @@
 
 
     /* ── CHARTS ─────────────────────────────────────────────────────── */
+    /* ── helpers to update a chart in-place or create it if missing ── */
+    function setChart(key, canvasId, type, data, options) {
+      if (charts[key]) {
+        charts[key].data = data;
+        Object.assign(charts[key].options, options);
+        charts[key].update('none'); // 'none' = skip animation → instant
+      } else {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        charts[key] = new Chart(ctx, { type, data, options });
+      }
+    }
     function renderCharts() {
       const vd = vis(), scale = getPeriodScale();
       Chart.defaults.font.family = "'Inter',system-ui,sans-serif";
@@ -3546,55 +3563,65 @@
       const periodLabel = td.length ? (td[0].label + ' – ' + td[td.length - 1].label) : '';
       if (CURRENT_MODE === 'products') {
         if (t1) t1.textContent = 'Products by Category'; if (t2) t2.textContent = 'Compliance Breakdown'; if (t4) t4.textContent = 'Top 6 by Accounts';
-        dc('cat');
         const cats = ['digital', 'payment', 'liability', 'asset', 'other'];
-        charts.cat = new Chart(document.getElementById('catChart'), { type: 'doughnut', data: { labels: cats.map(c => CAT_LBL[c].replace(/^\S+\s/, '')), datasets: [{ data: cats.map(c => vd.filter(p => p.cat === c).length), backgroundColor: cats.map(c => CAT_COL[c]), borderWidth: 2, borderColor: '#fff', hoverOffset: 7 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 10, boxWidth: 10 } } } } });
-        dc('comp');
+        setChart('cat', 'catChart', 'doughnut',
+          { labels: cats.map(c => CAT_LBL[c].replace(/^\S+\s/, '')), datasets: [{ data: cats.map(c => vd.filter(p => p.cat === c).length), backgroundColor: cats.map(c => CAT_COL[c]), borderWidth: 2, borderColor: '#fff', hoverOffset: 7 }] },
+          { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 10, boxWidth: 10 } } } });
         const ck = ['Compliant', 'Pending Review', 'Non-Compliant', 'Exempt'], cc = ['#059669', '#D97706', '#DC2626', '#0891B2'];
-        charts.comp = new Chart(document.getElementById('compChart'), { type: 'bar', data: { labels: ck, datasets: [{ data: ck.map(k => vd.filter(p => p.compliance_status === k).length), backgroundColor: cc, borderRadius: 6, barPercentage: .65 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 9 }, stepSize: 1 }, grid: { color: '#F1F5FB' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } } } });
-        dc('acct');
-        const top = [...vd].sort((a, b) => b.accounts_opened - a.accounts_opened).slice(0, 6);
-        charts.acct = new Chart(document.getElementById('acctChart'), { type: 'bar', data: { labels: top.map(p => p.name.length > 16 ? p.name.slice(0, 16) + '…' : p.name), datasets: [{ label: 'Active', data: top.map(p => p.active_accounts * scale), backgroundColor: '#059669', borderRadius: 4, stack: 's' }, { label: 'Inactive', data: top.map(p => p.inactive_accounts * scale), backgroundColor: '#CBD5E1', borderRadius: 4, stack: 's' }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } } }, scales: { x: { beginAtZero: true, ticks: { font: { size: 9 } }, grid: { color: '#F1F5FB' } }, y: { ticks: { font: { size: 9 } }, grid: { display: false } } } } });
+        setChart('comp', 'compChart', 'bar',
+          { labels: ck, datasets: [{ data: ck.map(k => vd.filter(p => p.compliance_status === k).length), backgroundColor: cc, borderRadius: 6, barPercentage: .65 }] },
+          { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 9 }, stepSize: 1 }, grid: { color: '#F1F5FB' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } } });
+        const top6p = [...vd].sort((a, b) => b.accounts_opened - a.accounts_opened).slice(0, 6);
+        setChart('acct', 'acctChart', 'bar',
+          { labels: top6p.map(p => p.name.length > 16 ? p.name.slice(0, 16) + '…' : p.name), datasets: [{ label: 'Active', data: top6p.map(p => p.active_accounts * scale), backgroundColor: '#059669', borderRadius: 4, stack: 's' }, { label: 'Inactive', data: top6p.map(p => p.inactive_accounts * scale), backgroundColor: '#CBD5E1', borderRadius: 4, stack: 's' }] },
+          { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } } }, scales: { x: { beginAtZero: true, ticks: { font: { size: 9 } }, grid: { color: '#F1F5FB' } }, y: { ticks: { font: { size: 9 } }, grid: { display: false } } } });
       } else if (CURRENT_MODE === 'projects') {
         if (t1) t1.textContent = 'Projects by Stage'; if (t2) t2.textContent = 'Risk Breakdown'; if (t4) t4.textContent = 'Budget by Project (Top 6)';
-        dc('cat');
         const stages = ['Initiation', 'Planning', 'Execution', 'Testing', 'Deployment', 'Closed'], scols = ['#2563EB', '#7C3AED', '#D97706', '#0891B2', '#059669', '#64748B'];
-        charts.cat = new Chart(document.getElementById('catChart'), { type: 'doughnut', data: { labels: stages, datasets: [{ data: stages.map(s => vd.filter(p => p.stage === s).length), backgroundColor: scols, borderWidth: 2, borderColor: '#fff', hoverOffset: 7 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 10, boxWidth: 10 } } } } });
-        dc('comp');
+        setChart('cat', 'catChart', 'doughnut',
+          { labels: stages, datasets: [{ data: stages.map(s => vd.filter(p => p.stage === s).length), backgroundColor: scols, borderWidth: 2, borderColor: '#fff', hoverOffset: 7 }] },
+          { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 10, boxWidth: 10 } } } });
         const rk = ['Low', 'Medium', 'High', 'Critical'], rc = ['#059669', '#D97706', '#F97316', '#DC2626'];
-        charts.comp = new Chart(document.getElementById('compChart'), { type: 'bar', data: { labels: rk, datasets: [{ data: rk.map(k => vd.filter(p => p.risk_level === k).length), backgroundColor: rc, borderRadius: 6, barPercentage: .65 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 9 }, stepSize: 1 }, grid: { color: '#F1F5FB' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } } } });
-        dc('acct');
-        const top = [...vd].sort((a, b) => b.budget_cost - a.budget_cost).slice(0, 6);
-        charts.acct = new Chart(document.getElementById('acctChart'), { type: 'bar', data: { labels: top.map(p => p.name.length > 16 ? p.name.slice(0, 16) + '…' : p.name), datasets: [{ label: 'Budget', data: top.map(p => p.budget_cost * scale), backgroundColor: '#2563EB', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } } }, scales: { x: { ticks: { font: { size: 9 } }, grid: { display: false } }, y: { beginAtZero: true, ticks: { font: { size: 9 } }, grid: { color: '#F1F5FB' } } } } });
+        setChart('comp', 'compChart', 'bar',
+          { labels: rk, datasets: [{ data: rk.map(k => vd.filter(p => p.risk_level === k).length), backgroundColor: rc, borderRadius: 6, barPercentage: .65 }] },
+          { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 9 }, stepSize: 1 }, grid: { color: '#F1F5FB' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } } });
+        const top6j = [...vd].sort((a, b) => b.budget_cost - a.budget_cost).slice(0, 6);
+        setChart('acct', 'acctChart', 'bar',
+          { labels: top6j.map(p => p.name.length > 16 ? p.name.slice(0, 16) + '…' : p.name), datasets: [{ label: 'Budget', data: top6j.map(p => p.budget_cost * scale), backgroundColor: '#2563EB', borderRadius: 4 }] },
+          { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } } }, scales: { x: { ticks: { font: { size: 9 } }, grid: { display: false } }, y: { beginAtZero: true, ticks: { font: { size: 9 } }, grid: { color: '#F1F5FB' } } } });
       } else {
         if (t1) t1.textContent = 'By Category'; if (t2) t2.textContent = 'Risk Profile'; if (t4) t4.textContent = 'Top by Progress';
-        dc('cat');
         const cats = ['digital', 'payment', 'liability', 'asset', 'other'];
-        charts.cat = new Chart(document.getElementById('catChart'), { type: 'doughnut', data: { labels: cats.map(c => CAT_LBL[c].replace(/^\S+\s/, '')), datasets: [{ data: cats.map(c => vd.filter(p => p.cat === c).length), backgroundColor: cats.map(c => CAT_COL[c]), borderWidth: 2, borderColor: '#fff', hoverOffset: 7 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 10, boxWidth: 10 } } } } });
-        dc('comp');
+        setChart('cat', 'catChart', 'doughnut',
+          { labels: cats.map(c => CAT_LBL[c].replace(/^\S+\s/, '')), datasets: [{ data: cats.map(c => vd.filter(p => p.cat === c).length), backgroundColor: cats.map(c => CAT_COL[c]), borderWidth: 2, borderColor: '#fff', hoverOffset: 7 }] },
+          { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 10, boxWidth: 10 } } } });
         const rk = ['Low', 'Medium', 'High', 'Critical'], rc = ['#059669', '#D97706', '#F97316', '#DC2626'];
-        charts.comp = new Chart(document.getElementById('compChart'), { type: 'bar', data: { labels: rk, datasets: [{ data: rk.map(k => vd.filter(p => p.risk_level === k).length), backgroundColor: rc, borderRadius: 6, barPercentage: .65 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 9 }, stepSize: 1 }, grid: { color: '#F1F5FB' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } } } });
-        dc('acct');
-        const top = [...vd].sort((a, b) => b.progress - a.progress).slice(0, 6);
-        charts.acct = new Chart(document.getElementById('acctChart'), { type: 'bar', data: { labels: top.map(p => p.name.length > 16 ? p.name.slice(0, 16) + '…' : p.name), datasets: [{ label: 'Progress %', data: top.map(p => p.progress), backgroundColor: '#2563EB', borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100, ticks: { font: { size: 9 } }, grid: { color: '#F1F5FB' } }, y: { ticks: { font: { size: 9 } }, grid: { display: false } } } } });
+        setChart('comp', 'compChart', 'bar',
+          { labels: rk, datasets: [{ data: rk.map(k => vd.filter(p => p.risk_level === k).length), backgroundColor: rc, borderRadius: 6, barPercentage: .65 }] },
+          { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 9 }, stepSize: 1 }, grid: { color: '#F1F5FB' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } } });
+        const top6m = [...vd].sort((a, b) => b.progress - a.progress).slice(0, 6);
+        setChart('acct', 'acctChart', 'bar',
+          { labels: top6m.map(p => p.name.length > 16 ? p.name.slice(0, 16) + '…' : p.name), datasets: [{ label: 'Progress %', data: top6m.map(p => p.progress), backgroundColor: '#2563EB', borderRadius: 4 }] },
+          { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100, ticks: { font: { size: 9 } }, grid: { color: '#F1F5FB' } }, y: { ticks: { font: { size: 9 } }, grid: { display: false } } } });
       }
-      dc('trendRev');
-      dc('trendOnb');
       const isProj = CURRENT_MODE === 'projects';
       const revLabel = isProj ? 'Expected Benefits' : 'Revenue';
       const accLabel = isProj ? 'Projects Added' : 'Accounts Opened';
-
       const cardRev = document.getElementById('c3-title-rev') ? document.getElementById('c3-title-rev').closest('.chart-card') : null;
       if (isProj) {
         if (cardRev) cardRev.style.display = 'none';
+        dc('trendRev');
       } else {
         if (cardRev) cardRev.style.display = 'block';
         if (t3Rev) t3Rev.textContent = revLabel + ' Trend — ' + periodLabel;
-        charts.trendRev = new Chart(document.getElementById('revenueTrendChart'), { type: 'line', data: { labels: td.map(t => t.label), datasets: [{ label: revLabel, data: td.map(t => t.revenue), borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.35, pointRadius: CURRENT_PERIOD === 'yearly' ? 0 : 3 }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, grid: { color: '#F1F5FB' }, ticks: { font: { size: 8 } } }, x: { ticks: { font: { size: 8 }, maxTicksLimit: CURRENT_PERIOD === 'weekly' ? 13 : 12, autoSkip: true }, grid: { display: false } } }, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } }, tooltip: { backgroundColor: 'rgba(15,32,53,0.9)', titleFont: { size: 11 }, bodyFont: { size: 10 } } } } });
+        setChart('trendRev', 'revenueTrendChart', 'line',
+          { labels: td.map(t => t.label), datasets: [{ label: revLabel, data: td.map(t => t.revenue), borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.35, pointRadius: CURRENT_PERIOD === 'yearly' ? 0 : 3 }] },
+          { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, grid: { color: '#F1F5FB' }, ticks: { font: { size: 8 } } }, x: { ticks: { font: { size: 8 }, maxTicksLimit: CURRENT_PERIOD === 'weekly' ? 13 : 12, autoSkip: true }, grid: { display: false } } }, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } }, tooltip: { backgroundColor: 'rgba(15,32,53,0.9)', titleFont: { size: 11 }, bodyFont: { size: 10 } } } });
       }
-
       if (t3Onb) t3Onb.textContent = accLabel + ' Trend — ' + periodLabel;
-      charts.trendOnb = new Chart(document.getElementById('onboardingTrendChart'), { type: 'line', data: { labels: td.map(t => t.label), datasets: [{ label: accLabel, data: td.map(t => t.onboarding), borderColor: '#D4A843', backgroundColor: 'rgba(212,168,67,0.1)', fill: true, tension: 0.35, pointRadius: CURRENT_PERIOD === 'yearly' ? 0 : 3 }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, grid: { color: '#F1F5FB' }, ticks: { font: { size: 8 }, stepSize: isProj ? 1 : undefined } }, x: { ticks: { font: { size: 8 }, maxTicksLimit: CURRENT_PERIOD === 'weekly' ? 13 : 12, autoSkip: true }, grid: { display: false } } }, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } }, tooltip: { backgroundColor: 'rgba(15,32,53,0.9)', titleFont: { size: 11 }, bodyFont: { size: 10 } } } } });
+      setChart('trendOnb', 'onboardingTrendChart', 'line',
+        { labels: td.map(t => t.label), datasets: [{ label: accLabel, data: td.map(t => t.onboarding), borderColor: '#D4A843', backgroundColor: 'rgba(212,168,67,0.1)', fill: true, tension: 0.35, pointRadius: CURRENT_PERIOD === 'yearly' ? 0 : 3 }] },
+        { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, grid: { color: '#F1F5FB' }, ticks: { font: { size: 8 }, stepSize: isProj ? 1 : undefined } }, x: { ticks: { font: { size: 8 }, maxTicksLimit: CURRENT_PERIOD === 'weekly' ? 13 : 12, autoSkip: true }, grid: { display: false } } }, plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } }, tooltip: { backgroundColor: 'rgba(15,32,53,0.9)', titleFont: { size: 11 }, bodyFont: { size: 10 } } } });
     }
 
     /* ── TABLE ──────────────────────────────────────────────────────── */
