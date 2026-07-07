@@ -2776,8 +2776,8 @@
           </div>
           <div class="f mode-project-only"><label>Start Date *</label><input id="f-start" type="date"></div>
           <div class="f mode-project-only"><label>End Date</label><input id="f-end" type="date"></div>
-          <div class="f mode-project-only"><label>Progress % (0–100)</label><input id="f-progress" type="number" min="0"
-              max="100" placeholder="0"></div>
+          <div class="f mode-project-only"><label>Progress % <span style="font-size:10px;color:var(--muted);font-weight:400">(auto)</span></label><input id="f-progress" type="number" min="0"
+              max="100" placeholder="0" readonly style="background:#F1F5F9;color:var(--muted);cursor:not-allowed;border-color:var(--bdr)"></div>
           <div class="f mode-project-only"><label>Status *</label>
             <select id="f-status">
               <option>Pipeline</option>
@@ -3283,7 +3283,7 @@
         const ongoing = vd.filter(p => ['Active', 'Pipeline', 'In Review', 'Paused'].includes(p.status)).length;
         const completed = vd.filter(p => p.status === 'Completed').length;
         const totalBudget = vd.reduce((s, p) => s + (p.budget_cost || 0), 0);
-        const periodName = CURRENT_PERIOD === 'monthly' ? 'This Month' : 'This Year';
+        const periodName = CURRENT_PERIOD === 'monthly' ? now.toLocaleString('en', { month: 'long', year: 'numeric' }) : String(now.getFullYear());
 
         document.getElementById('kpi-row').innerHTML = `
       <div class="kpi k1"><div class="kpi-ico">🚀</div><div class="kpi-lbl">Total Projects</div><div class="kpi-val">${total}</div><div class="kpi-sub">${(CAT_LBL[currentCat] || 'All').replace(/^\S+\s/, '')}</div></div>
@@ -3834,6 +3834,13 @@
     }
 
     /* Project tasks */
+    function calcProjectProgress() {
+      const el = document.getElementById('f-progress');
+      if (!el) return;
+      if (!formTasks.length) { el.value = 0; return; }
+      const completed = formTasks.filter(t => t.status === 'Completed').length;
+      el.value = Math.round((completed / formTasks.length) * 100);
+    }
     function addFormTask(e) {
       if (e) e.preventDefault();
       const t = document.getElementById('t-text').value.trim(); if (!t) { toast('⚠️ Enter task description'); return; }
@@ -3844,6 +3851,7 @@
     function removeFormTask(idx) { formTasks.splice(idx, 1); renderFormTasks(); }
     function renderFormTasks() {
       const c = document.getElementById('t-preview'); if (!c) return;
+      calcProjectProgress();
       if (!formTasks.length) { c.innerHTML = `<div style="text-align:center;padding:12px;color:var(--muted);font-size:11px;font-style:italic">No steps added yet.</div>`; return; }
       c.innerHTML = formTasks.map((t, i) => {
         const stCss = { Pending: 'b-pending', 'In Progress': 'b-review', Completed: 'b-compliant' }[t.status] || 'b-pending';
