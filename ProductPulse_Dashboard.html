@@ -1070,19 +1070,27 @@
 
     select.badge {
       cursor: pointer;
-      border: 1px solid transparent;
+      border: 1.5px solid rgba(0,0,0,0.18);
       outline: none;
       font-family: inherit;
-      padding: 3px 18px 3px 8px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
-      background-position: right 6px center;
+      padding: 3px 22px 3px 8px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23333333'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+      background-position: right 5px center;
       background-repeat: no-repeat;
-      background-size: 8px;
+      background-size: 9px;
       appearance: none;
       -webkit-appearance: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
     select.badge:hover {
-      filter: brightness(0.95);
+      filter: brightness(0.93);
+      border-color: rgba(0,0,0,0.35);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.13);
+    }
+    select.badge:focus {
+      border-color: rgba(0,0,0,0.4);
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
     }
     select.badge option {
       background: #ffffff;
@@ -4792,7 +4800,7 @@ CREATE POLICY "Allow approved audit logs" ON audit_logs FOR ALL TO authenticated
         const task = proj.tasks.find(t => String(t.id) === String(taskId));
         if (!task) throw new Error('Task not found — please close and reopen this project.');
         const oldStatus = task.status;
-        // Optimistic UI: update select badge colour immediately
+        // Optimistic UI: update select badge colour immediately (preserve 'badge' class + add colour class)
         if (selectEl) { selectEl.className = 'badge ' + (SC[newStatus] || 'b-pending'); }
         // Persist to Supabase
         await sbPatch('project_tasks', '?id=eq.' + taskId, { status: newStatus });
