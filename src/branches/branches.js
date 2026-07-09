@@ -536,7 +536,7 @@ function renderBranchPerformance() {
     kpiRow.innerHTML = `
       <div class="kpi k1">
         <div class="kpi-ico"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></div>
-        <div class="kpi-lbl">Units Sold</div>
+        <div class="kpi-lbl">Accounts Sold</div>
         <div class="kpi-val">${N(Math.round(curr.units))}</div>
         <div class="kpi-sub">Target: ${N(Math.round(curr.targetUnits))} · <span style="font-weight:800;color:${unitAch >= 100 ? 'var(--green)' : 'var(--amber)'}">${unitAch}% Achieved</span></div>
       </div>
@@ -548,7 +548,7 @@ function renderBranchPerformance() {
       </div>
       <div class="kpi k3">
         <div class="kpi-ico"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trending-up"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
-        <div class="kpi-lbl">Units Growth (PoP)</div>
+        <div class="kpi-lbl">Accounts Growth (PoP)</div>
         <div class="kpi-val">${unitsGrowth > 0 ? '+' : ''}${unitsGrowth.toFixed(1)}%</div>
         <div class="kpi-sub">Vs. Previous Period (${renderGrowthBadge(unitsGrowth)})</div>
       </div>
@@ -685,7 +685,7 @@ function renderBranchPerformance() {
     {
       labels: trendLabels,
       datasets: [{
-        label: 'Units Sold',
+        label: 'Accounts Sold',
         data: trendData,
         borderColor: '#2563EB',
         backgroundColor: 'rgba(37,99,235,0.06)',
@@ -765,14 +765,14 @@ function renderBranchPerformance() {
       labels: branchLabels,
       datasets: [
         {
-          label: 'Actual Units Sold',
+          label: 'Actual Accounts Sold',
           data: branchActualUnits,
           backgroundColor: '#2563EB',
           borderRadius: 4,
           maxBarThickness: 15
         },
         {
-          label: 'Target Units',
+          label: 'Target Accounts',
           data: branchTargetUnits,
           backgroundColor: '#CBD5E1',
           borderRadius: 4,
