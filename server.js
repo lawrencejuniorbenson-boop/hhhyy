@@ -418,6 +418,10 @@ app.post('/api/approvals/preapprove', authenticateToken, requireAdmin, async (re
 });
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`Server is running securely on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server is running securely on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
