@@ -95,7 +95,12 @@ app.post('/api/auth/login', async (req, res) => {
 
   try {
     const { data, error } = await supabaseAnon.auth.signInWithPassword({ email, password });
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      if (error.message.toLowerCase().includes('credential') || error.message.toLowerCase().includes('invalid')) {
+        return res.status(400).json({ error: 'Wrong credentials' });
+      }
+      return res.status(400).json({ error: error.message });
+    }
 
     // Check approvals
     const { data: appr, error: apprErr } = await supabaseAnon

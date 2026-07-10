@@ -103,6 +103,34 @@ async function handleAuthSubmit(e) {
   }
 }
 
+async function parseResponse(res) {
+  let text = '';
+  try {
+    text = await res.text();
+  } catch (e) {
+    if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+    return {};
+  }
+  
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    if (!res.ok) {
+      if (text.includes('<!DOCTYPE html>') || text.includes('<html')) {
+        throw new Error(`Server Error (${res.status})`);
+      }
+      throw new Error(text || `Request failed with status ${res.status}`);
+    }
+    throw new Error('Failed to parse response JSON');
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || 'Request failed');
+  }
+  return data;
+}
+
 async function loginUser(email, password) {
   showLoad(true);
   try {
@@ -111,11 +139,7 @@ async function loginUser(email, password) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Login failed');
-    }
-    const data = await res.json();
+    const data = await parseResponse(res);
     AUTH_TOKEN = data.access_token;
     IS_ADMIN = data.user.is_admin;
     
@@ -161,11 +185,7 @@ async function registerUser(email, password) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Registration failed');
-    }
-    const data = await res.json();
+    const data = await parseResponse(res);
     
     if (data.user.approved) {
       if (data.access_token) {
