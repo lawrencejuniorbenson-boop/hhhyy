@@ -14,9 +14,9 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Static files server
-app.use('/src', express.static(path.join(__dirname, 'src')));
+app.use('/src', express.static(path.join(__dirname, 'public', 'src')));
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
