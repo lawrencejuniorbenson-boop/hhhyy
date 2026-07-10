@@ -22,15 +22,25 @@ app.get('/', (req, res) => {
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error('CRITICAL ERROR: SUPABASE_URL and SUPABASE_ANON_KEY must be set in env!');
-  process.exit(1);
-}
-
-// Global anonymous client
-const supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false }
+// Check configuration on API requests
+app.use('/api', (req, res, next) => {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return res.status(500).json({
+      error: "Supabase configuration is missing. Please configure SUPABASE_URL and SUPABASE_ANON_KEY in your Vercel Project Settings > Environment Variables."
+    });
+  }
+  next();
 });
+
+// Global anonymous client (initialized only if credentials are set)
+let supabaseAnon = null;
+if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+  supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false }
+  });
+} else {
+  console.warn('WARNING: SUPABASE_URL and SUPABASE_ANON_KEY are not set in environment!');
+}
 
 // Helper to get user-scoped client from request headers
 function getClient(req) {
