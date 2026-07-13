@@ -613,7 +613,8 @@
             <div id="branch-perf-product-grid" style="grid-column: 1 / -1; border-top: 1px dashed var(--bdr); padding-top: 16px;">
               <!-- Populated dynamically in branches.js -->
             </div>
-            <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end;">
+            <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 12px;">
+              <button type="button" onclick="clearBranchPerfData()" class="btn-s" style="margin-top: 0; padding: 10px 24px; font-size: 12.5px; border-radius: 8px; font-weight: 800; color: var(--red); border-color: rgba(220, 38, 38, 0.2); background: #fff;">Clear Performance Data</button>
               <button type="submit" class="btn-login" style="margin-top: 0; padding: 10px 24px; font-size: 12.5px; border-radius: 8px;">Save Performance Data</button>
             </div>
           </form>

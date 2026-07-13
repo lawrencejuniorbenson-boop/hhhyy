@@ -375,6 +375,59 @@ async function saveBranchPerfData(e) {
   }
 }
 
+async function clearBranchPerfData() {
+  const range = getPeriodDateRange(branchPeriod, branchDate);
+  if (!confirm(`Are you sure you want to clear all inputted and saved performance data for ${branchSel} (${range.label})? This will reset all fields and delete the saved metrics.`)) {
+    return;
+  }
+
+  // Clear all form input elements in the dynamic product breakdown grid
+  document.querySelectorAll('.bp-prod-actual').forEach(input => {
+    input.value = '';
+  });
+  document.querySelectorAll('.bp-prod-target').forEach(input => {
+    input.value = '';
+  });
+  document.querySelectorAll('.bp-prod-val-actual').forEach(input => {
+    input.value = '';
+  });
+  document.querySelectorAll('.bp-prod-val-target').forEach(input => {
+    input.value = '';
+  });
+
+  // Recalculate totals (resets unit totals, value totals, category badges to 0)
+  recalculateBPFormTotals();
+
+  // Delete the draft in localStorage
+  const draftKey = `bp_draft_${branchSel}_${branchPeriod}_${range.label}`;
+  localStorage.removeItem(draftKey);
+
+  // Remove the entry from global performance data object if it exists
+  if (BRANCH_PERF_DATA[branchSel] && BRANCH_PERF_DATA[branchSel][range.label]) {
+    delete BRANCH_PERF_DATA[branchSel][range.label];
+  }
+
+  showLoad(true);
+  try {
+    // Upsert the updated empty/cleared structure to Supabase
+    await sbUpsert('dashboard_settings', {
+      key: 'branch_perf_data',
+      value: JSON.stringify(BRANCH_PERF_DATA)
+    });
+    toast('Performance data cleared successfully!');
+    try {
+      await logAuditAction('UPDATE_SETTINGS', 'system', null, `Cleared performance data for ${branchSel} (${range.label})`);
+    } catch (err) {}
+    renderBranchPerformance();
+  } catch (err) {
+    console.error(err);
+    toast('Error clearing performance data: ' + err.message);
+  } finally {
+    showLoad(false);
+  }
+}
+
+
 function renderBranchPerformance() {
   const range = getPeriodDateRange(branchPeriod, branchDate);
   
