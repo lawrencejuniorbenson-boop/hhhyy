@@ -367,6 +367,7 @@ async function saveBranchPerfData(e) {
       await logAuditAction('UPDATE_SETTINGS', 'system', null, `Updated branch performance data for ${branchSel} (${range.label})`);
     } catch (err) {}
     renderBranchPerformance();
+    clearInputsOnly();
   } catch (err) {
     console.error(err);
     toast('Error saving performance data: ' + err.message);
@@ -375,11 +376,7 @@ async function saveBranchPerfData(e) {
   }
 }
 
-function clearBranchPerfData() {
-  if (!confirm(`Are you sure you want to clear all input fields in this form?`)) {
-    return;
-  }
-
+function clearInputsOnly() {
   // Clear all form input elements in the dynamic product breakdown grid
   document.querySelectorAll('.bp-prod-actual').forEach(input => {
     input.value = '';
@@ -394,11 +391,26 @@ function clearBranchPerfData() {
     input.value = '';
   });
 
-  // Recalculate totals (resets unit totals, value totals, category badges to 0)
-  recalculateBPFormTotals();
+  // Reset summary read-only elements
+  const inpUnits = document.getElementById('inp-bp-units');
+  if (inpUnits) inpUnits.value = '';
+  const inpTarget = document.getElementById('inp-bp-units-target');
+  if (inpTarget) inpTarget.value = '';
+  const inpValue = document.getElementById('inp-bp-value');
+  if (inpValue) inpValue.value = '';
+  const inpTargetValue = document.getElementById('inp-bp-value-target');
+  if (inpTargetValue) inpTargetValue.value = '';
 
-  toast('Form inputs cleared!');
+  // Reset the badges
+  const cats = ['digital', 'payment', 'liability', 'asset', 'other'];
+  cats.forEach(c => {
+    const badge = document.getElementById(`bp-cat-sum-${c}`);
+    if (badge) {
+      badge.textContent = '0 / 0';
+    }
+  });
 }
+
 
 
 
