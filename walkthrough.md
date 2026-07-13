@@ -33,14 +33,13 @@ The dashboard application has been refactored, secured with a Node.js/Express ba
 ### 5. Branch Tab Layout Rearrangement
 - Shifted the **Direct Input Form Panel** to the bottom of the page, elevating all **KPI Cards, Charts, and lists** to the top section of the Branch tab page.
 
-### 6. Clear Performance Data Button
-- **Form Action Integration**: Added a secondary styled **Clear Performance Data** button next to **Save Performance Data** at the bottom right of the performance data entry form in [index.html](file:///Users/user/Downloads/product/public/index.html).
+### 6. Clear Inputted Data Button
+- **Form Action Integration**: Added a secondary styled **Clear Inputted Data** button next to **Save Performance Data** at the bottom right of the performance data entry form in [index.html](file:///Users/user/Downloads/product/public/index.html).
 - **Interactive Reset Handler (`clearBranchPerfData`)**: Implemented a function in [branches.js](file:///Users/user/Downloads/product/public/src/branches/branches.js) that:
-  - Prompts the user with a confirmation dialog to prevent accidental deletion.
+  - Prompts the user with a confirmation dialog.
   - Clears all input elements inside the dynamic product breakdown grid.
-  - Recalculates all form aggregates (resets unit totals, value totals, category badges to 0).
-  - Deletes the local draft cache from `localStorage`.
-  - Removes the saved entry from `BRANCH_PERF_DATA` and pushes the updated dataset directly to Supabase to clear any previously saved metrics.
+  - Recalculates all form aggregates (resets unit totals, value totals, category badges to 0) without making database calls, leaving saved database values intact.
+
 
 ---
 
